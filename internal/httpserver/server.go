@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/SEA-Stategy-Game/game-room-manager/internal/config"
+	"github.com/SEA-Stategy-Game/game-room-manager/internal/rooms"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"go.uber.org/zap"
@@ -43,6 +44,11 @@ func zapRequestLogger(log *zap.Logger) func(http.Handler) http.Handler {
 func New(cfg *config.Config, logger *zap.Logger) *Server {
 	r := chi.NewRouter()
 	r.Use(zapRequestLogger(logger))
+
+	roomRepo := rooms.NewDefaultInMemoryRepository()
+	roomSvc := rooms.NewService(roomRepo)
+	roomHandler := rooms.NewHandler(roomSvc, logger)
+	r.Get("/rooms", roomHandler.GetRooms)
 
 	r.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		logger.Info("health check", zap.String("path", r.URL.Path), zap.String("method", r.Method))
