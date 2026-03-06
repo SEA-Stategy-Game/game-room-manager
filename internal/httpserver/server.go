@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"github.com/SEA-Stategy-Game/game-room-manager/internal/config"
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 	"go.uber.org/zap"
 )
 
@@ -19,16 +21,36 @@ type Server struct {
 	server *http.Server
 }
 
-func New(cfg *config.Config, logger *zap.Logger) *Server {
-	mux := http.NewServeMux()
+func zapRequestLogger(log *zap.Logger) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			start := time.Now()
+			ww := middleware.NewWrapResponseWriter(w, r.ProtoMajor)
 
-	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
+			next.ServeHTTP(ww, r)
+
+			log.Info("http request",
+				zap.String("method", r.Method),
+				zap.String("path", r.URL.Path),
+				zap.Int("status", ww.Status()),
+				zap.Int("bytes", ww.BytesWritten()),
+				zap.Duration("duration", time.Since(start)),
+			)
+		})
+	}
+}
+
+func New(cfg *config.Config, logger *zap.Logger) *Server {
+	r := chi.NewRouter()
+	r.Use(zapRequestLogger(logger))
+
+	r.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		logger.Info("health check", zap.String("path", r.URL.Path), zap.String("method", r.Method))
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ok"))
 	})
 
-	mux.HandleFunc("/readyz", func(w http.ResponseWriter, r *http.Request) {
+	r.HandleFunc("/readyz", func(w http.ResponseWriter, r *http.Request) {
 		logger.Info("readiness check", zap.String("path", r.URL.Path), zap.String("method", r.Method))
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ready"))
@@ -38,7 +60,7 @@ func New(cfg *config.Config, logger *zap.Logger) *Server {
 
 	srv := &http.Server{
 		Addr:    addr,
-		Handler: mux,
+		Handler: r,
 	}
 
 	return &Server{
