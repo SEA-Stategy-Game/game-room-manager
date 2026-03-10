@@ -77,11 +77,6 @@ Override the HTTP port:
 docker run --rm -p 9090:9090 -e APP_PORT=9090 game-room-manager
 ```
 
-You can also use `PORT` if your platform injects it:
-
-```bash
-docker run --rm -p 9090:9090 -e PORT=9090 game-room-manager
-```
 
 ## Logging
 
@@ -93,3 +88,10 @@ Logging uses Zap:
 
 On startup, the service logs a summary of the active configuration and environment.
 
+## Testing
+
+Run all tests:
+
+```bash
+go test ./...
+```
