@@ -21,6 +21,8 @@ func NewDefaultInMemoryRepository() *InMemoryRepository {
 			ConnectionDetails: "ws://localhost:8080/rooms/room-1",
 			State:             StateActive,
 			Participants:      3,
+			Address: 			"127.0.0.1",
+			Port: 			 	12345,
 		},
 		{
 			RoomID:            "room-2",

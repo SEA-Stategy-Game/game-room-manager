@@ -14,5 +14,7 @@ type Room struct {
 	ConnectionDetails string `json:"connectionDetails"`
 	State             State  `json:"state"`
 	Participants      int    `json:"participants"`
+	Address 		  string `json:"address"`
+	Port 			  int 	 `json:"port"`
 }
 
