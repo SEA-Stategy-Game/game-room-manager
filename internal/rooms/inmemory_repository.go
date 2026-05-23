@@ -21,14 +21,16 @@ func NewDefaultInMemoryRepository() *InMemoryRepository {
 			ConnectionDetails: "ws://localhost:8080/rooms/room-1",
 			State:             StateActive,
 			Participants:      3,
-			Address: 			"127.0.0.1",
-			Port: 			 	12345,
+			Address:           "127.0.0.1",
+			Port:              12345,
+			Players:           []string{},
 		},
 		{
 			RoomID:            "room-2",
 			ConnectionDetails: "ws://localhost:8080/rooms/room-2",
 			State:             StateInactive,
 			Participants:      0,
+			Players:           []string{},
 		},
 	})
 }
@@ -38,5 +40,27 @@ func (r *InMemoryRepository) List(ctx context.Context) ([]Room, error) {
 	out := make([]Room, len(r.rooms))
 	copy(out, r.rooms)
 	return out, nil
+}
+
+func (r *InMemoryRepository) GetByID(ctx context.Context, roomID string) (*Room, error) {
+	_ = ctx
+	for i := range r.rooms {
+		if r.rooms[i].RoomID == roomID {
+			room := r.rooms[i]
+			return &room, nil
+		}
+	}
+	return nil, nil
+}
+
+func (r *InMemoryRepository) Update(ctx context.Context, room *Room) error {
+	_ = ctx
+	for i := range r.rooms {
+		if r.rooms[i].RoomID == room.RoomID {
+			r.rooms[i] = *room
+			return nil
+		}
+	}
+	return nil
 }
 
