@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
 )
 
@@ -30,5 +31,19 @@ func (h *Handler) GetRooms(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewEncoder(w).Encode(rooms); err != nil {
 		h.log.Error("failed to encode rooms response", zap.Error(err))
 	}
+}
+
+func (h *Handler) JoinRoom(w http.ResponseWriter, r *http.Request) {
+	roomID := chi.URLParam(r, "roomId")
+	playerID := chi.URLParam(r, "playerId")
+
+	if err := h.svc.JoinGameRoom(r.Context(), roomID, playerID); err != nil {
+		h.log.Error("failed to join room", zap.Error(err))
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write([]byte("player joined"))
 }
 

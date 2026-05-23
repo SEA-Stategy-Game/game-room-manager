@@ -15,3 +15,18 @@ func (s *Service) ListRooms(ctx context.Context) ([]Room, error) {
 	return s.repo.List(ctx)
 }
 
+func (s *Service) JoinGameRoom(ctx context.Context, roomID string, playerID string) error {
+	room, err := s.repo.GetByID(ctx, roomID)
+	if err != nil {
+		return err
+	}
+	if room == nil {
+		return nil
+	}
+
+	room.Players = append(room.Players, playerID)
+	room.Participants++
+
+	return s.repo.Update(ctx, room)
+}
+
