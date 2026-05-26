@@ -9,9 +9,10 @@ import (
 )
 
 type Config struct {
-	Port     int
-	Env      string
-	LogLevel string
+	Port      int
+	Env       string
+	LogLevel  string
+	GameImage string
 }
 
 func Load() (*Config, error) {
@@ -23,6 +24,7 @@ func Load() (*Config, error) {
 	v.SetDefault("port", 8080)
 	v.SetDefault("env", "local")
 	v.SetDefault("log_level", "info")
+	v.SetDefault("game_image", "sea-strategy-game:latest")
 
 	v.SetConfigName("config")
 	v.SetConfigType("yaml")
@@ -31,10 +33,12 @@ func Load() (*Config, error) {
 	_ = v.ReadInConfig()
 
 	cfg := &Config{
-		Port:     v.GetInt("port"),
-		Env:      v.GetString("env"),
-		LogLevel: v.GetString("log_level"),
+		Port:      v.GetInt("port"),
+		Env:       v.GetString("env"),
+		LogLevel:  v.GetString("log_level"),
+		GameImage: v.GetString("game_image"),
 	}
+
 	// Allow conventional PORT env var to override, but still validate.
 	if p := os.Getenv("PORT"); p != "" {
 		if parsed, err := strconv.Atoi(p); err == nil {
@@ -50,4 +54,3 @@ func Load() (*Config, error) {
 
 	return cfg, nil
 }
-

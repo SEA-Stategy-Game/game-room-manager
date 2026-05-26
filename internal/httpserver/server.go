@@ -46,7 +46,7 @@ func New(cfg *config.Config, logger *zap.Logger) *Server {
 	r.Use(zapRequestLogger(logger))
 
 	roomRepo := rooms.NewDefaultInMemoryRepository()
-	roomSvc := rooms.NewService(roomRepo)
+	roomSvc := rooms.NewService(roomRepo, cfg.GameImage)
 	roomHandler := rooms.NewHandler(roomSvc, logger)
 	r.Get("/rooms", roomHandler.GetRooms)
 	r.Post("/rooms/{roomId}/players/{playerId}/join", roomHandler.JoinRoom)

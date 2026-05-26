@@ -65,5 +65,7 @@ func (r *InMemoryRepository) Update(ctx context.Context, room *Room) error {
 }
 
 func (r *InMemoryRepository) Create(ctx context.Context, room *Room) error {
+	_ = ctx
+	r.rooms = append(r.rooms, *room)
 	return nil
 }

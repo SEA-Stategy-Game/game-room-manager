@@ -1,4 +1,4 @@
 port: 8080
 env: local
 log_level: info
-
+game_image: sea-strategy-game:latest

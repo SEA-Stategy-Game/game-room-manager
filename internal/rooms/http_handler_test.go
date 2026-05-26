@@ -21,7 +21,7 @@ func TestGetRooms_ReturnsJSONList(t *testing.T) {
 			Participants:      2,
 		},
 	})
-	svc := NewService(repo)
+	svc := NewService(repo, "test-game-image:latest")
 	h := NewHandler(svc, zap.NewNop())
 
 	r := chi.NewRouter()
@@ -73,7 +73,7 @@ func TestJoinRoom_AddsPlayerToRoom(t *testing.T) {
 			Players:           []string{"player-1"},
 		},
 	})
-	svc := NewService(repo)
+	svc := NewService(repo, "test-game-image:latest")
 	h := NewHandler(svc, zap.NewNop())
 
 	r := chi.NewRouter()
@@ -99,4 +99,3 @@ func TestJoinRoom_AddsPlayerToRoom(t *testing.T) {
 		t.Fatalf("expected participants 2, got %d", updated.Participants)
 	}
 }
-

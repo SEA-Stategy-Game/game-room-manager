@@ -49,7 +49,6 @@ func (h *Handler) JoinRoom(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) CreateGame(w http.ResponseWriter, r *http.Request) {
 	room, err := h.svc.RegisterGameRoom(r.Context())
-
 	if err != nil {
 		h.log.Error("failed to create game", zap.Error(err))
 		http.Error(w, "internal error", http.StatusInternalServerError)
@@ -57,7 +56,7 @@ func (h *Handler) CreateGame(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
+	w.WriteHeader(http.StatusCreated)
 
 	if err := json.NewEncoder(w).Encode(room); err != nil {
 		h.log.Error("failed to encode room response", zap.Error(err))

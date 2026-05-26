@@ -9,11 +9,15 @@ import (
 
 // Service is the application/service layer (use-cases) for rooms.
 type Service struct {
-	repo Repository
+	repo      Repository
+	gameImage string
 }
 
-func NewService(repo Repository) *Service {
-	return &Service{repo: repo}
+func NewService(repo Repository, gameImage string) *Service {
+	return &Service{
+		repo:      repo,
+		gameImage: gameImage,
+	}
 }
 
 func (s *Service) ListRooms(ctx context.Context) ([]Room, error) {
@@ -36,14 +40,24 @@ func (s *Service) JoinGameRoom(ctx context.Context, roomID string, playerID stri
 }
 
 func (s *Service) RegisterGameRoom(ctx context.Context) (Room, error) {
-
 	id := uuid.New().String()
 
-	room := Room{
-		RoomID: id,
+	containerID, err := startContainer(ctx, s.gameImage)
+	if err != nil {
+		return Room{}, err
 	}
 
-	// Here we spin up a new docker container with the game running
+	room := Room{
+		RoomID:            id,
+		ConnectionDetails: containerID,
+		State:             StateActive,
+		Participants:      0,
+		Players:           []string{},
+	}
+
+	if err := s.repo.Create(ctx, &room); err != nil {
+		return Room{}, err
+	}
 
 	return room, nil
 }
