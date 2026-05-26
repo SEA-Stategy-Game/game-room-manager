@@ -50,6 +50,7 @@ func New(cfg *config.Config, logger *zap.Logger) *Server {
 	roomHandler := rooms.NewHandler(roomSvc, logger)
 	r.Get("/rooms", roomHandler.GetRooms)
 	r.Post("/rooms/{roomId}/players/{playerId}/join", roomHandler.JoinRoom)
+	r.Post(("/rooms/create"), roomHandler.CreateGame)
 
 	r.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		logger.Info("health check", zap.String("path", r.URL.Path), zap.String("method", r.Method))
@@ -106,4 +107,3 @@ func (s *Server) Run() error {
 		return err
 	}
 }
-

@@ -64,3 +64,6 @@ func (r *InMemoryRepository) Update(ctx context.Context, room *Room) error {
 	return nil
 }
 
+func (r *InMemoryRepository) Create(ctx context.Context, room *Room) error {
+	return nil
+}

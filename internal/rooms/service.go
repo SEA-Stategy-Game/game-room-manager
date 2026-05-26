@@ -1,6 +1,11 @@
 package rooms
 
-import "context"
+import (
+	"context"
+
+	"github.com/google/uuid"
+	"github.com/moby/moby/client"
+)
 
 // Service is the application/service layer (use-cases) for rooms.
 type Service struct {
@@ -30,3 +35,30 @@ func (s *Service) JoinGameRoom(ctx context.Context, roomID string, playerID stri
 	return s.repo.Update(ctx, room)
 }
 
+func (s *Service) RegisterGameRoom(ctx context.Context) (Room, error) {
+
+	id := uuid.New().String()
+
+	room := Room{
+		RoomID: id,
+	}
+
+	// Here we spin up a new docker container with the game running
+
+	return room, nil
+}
+
+func startContainer(ctx context.Context, image string) (string, error) {
+
+	cli, err := client.New(client.FromEnv)
+	if err != nil {
+		return "", err
+	}
+
+	container, err := cli.ContainerCreate(ctx, client.ContainerCreateOptions{Image: image})
+
+	_, err = cli.ContainerStart(ctx, container.ID, client.ContainerStartOptions{})
+
+	return container.ID, err
+
+}
