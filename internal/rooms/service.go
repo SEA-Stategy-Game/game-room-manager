@@ -33,6 +33,13 @@ func (s *Service) JoinGameRoom(ctx context.Context, roomID string, playerID stri
 		return nil
 	}
 
+	// Ensure the player isn't already in the room
+	for _, p := range room.Players {
+		if p == playerID {
+			return nil
+		}
+	}
+
 	room.Players = append(room.Players, playerID)
 	room.Participants++
 

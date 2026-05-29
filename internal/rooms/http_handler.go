@@ -26,6 +26,7 @@ func (h *Handler) GetRooms(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// h.log.Info("retrieved rooms", zap.Any("rooms", rooms))
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	if err := json.NewEncoder(w).Encode(rooms); err != nil {
