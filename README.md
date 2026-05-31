@@ -77,6 +77,21 @@ Override the HTTP port:
 docker run --rm -p 9090:9090 -e APP_PORT=9090 game-room-manager
 ```
 
+## Running with Docker Compose
+A docker-compose.yml file is provided to run the complete environment, which includes: 
+- game-room-manager: This service (exposed on port 8080). 
+- planbackend: The planning API service (exposed on port 5000). It assumes the planning backend repository shares the same root as this repo.
+- redis: Redis cache used by the planning API (exposed on port 6379). 
+
+To start all services in the background, run: 
+
+ `bash docker compose up -d --build`
+ 
+ To stop the services, run: 
+
+ `bash docker compose down` 
+
+
 
 ## Logging
 
