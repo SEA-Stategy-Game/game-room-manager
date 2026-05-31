@@ -1,0 +1,33 @@
+services:
+  game-room-manager:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    volumes:
+      # Expose the host's Docker socket to the container so the 
+      # game-room-manager's Docker client can start game containers
+      - /var/run/docker.sock:/var/run/docker.sock
+
+  planbackend:
+    build:
+      # Note: Adjust this context path to point to your actual planning-api repository
+      context: ../Planning/backend/
+      dockerfile: Dockerfile
+    ports:
+      - "5000:8080"
+    environment:
+      - ConnectionStrings__DefaultConnection=Data Source=data/plans.db
+      - UseRedis=true
+      - RedisConnection=redis:6379
+    volumes:
+      # Adjust this volume mapping as well, ensuring it aligns with the planning-api path
+      - ../planning-api/data:/app/data
+    depends_on:
+      - redis
+
+  redis:
+    image: redis:alpine
+    ports:
+      - "6379:6379"
