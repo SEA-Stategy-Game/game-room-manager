@@ -95,6 +95,25 @@ func (h *Handler) GetRooms(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (h *Handler) GetRoom(w http.ResponseWriter, r *http.Request) {
+	roomID := chi.URLParam(r, "roomId")
+
+	rooms, err := h.svc.FindRoom(r.Context(), roomID)
+
+	if err != nil {
+		h.log.Error("failed to find room", zap.Error(err))
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	// h.log.Info("retrieved rooms", zap.Any("rooms", rooms))
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	if err := json.NewEncoder(w).Encode(rooms); err != nil {
+		h.log.Error("failed to encode response", zap.Error(err))
+	}
+}
+
 func (h *Handler) JoinRoom(w http.ResponseWriter, r *http.Request) {
 	roomID := chi.URLParam(r, "roomId")
 	playerID := chi.URLParam(r, "playerId")
@@ -136,4 +155,31 @@ func (h *Handler) SetReady(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write([]byte("room set to ready"))
+}
+
+func (h *Handler) SetCrashed(w http.ResponseWriter, r *http.Request) {
+	roomID := chi.URLParam(r, "roomId")
+
+	if err := h.svc.CrashGameRoom(r.Context(), roomID); err != nil {
+		h.log.Error("failed to set to crashed state", zap.Error(err))
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write([]byte("room set to crashed"))
+}
+
+func (h *Handler) SetEnded(w http.ResponseWriter, r *http.Request) {
+	roomID := chi.URLParam(r, "roomId")
+	winner := chi.URLParam(r, "winner")
+
+	if err := h.svc.EndGameRoom(r.Context(), roomID, winner); err != nil {
+		h.log.Error("failed to set to ended state", zap.Error(err))
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write([]byte("room set to ended"))
 }

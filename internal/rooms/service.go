@@ -22,6 +22,10 @@ func (s *Service) ListRooms(ctx context.Context) ([]Room, error) {
 	return s.repo.List(ctx)
 }
 
+func (s *Service) FindRoom(ctx context.Context, roomID string) (*Room, error) {
+	return s.repo.GetByID(ctx, roomID)
+}
+
 func (s *Service) JoinGameRoom(ctx context.Context, roomID string, playerID string) error {
 	room, err := s.repo.GetByID(ctx, roomID)
 	if err != nil {
@@ -54,6 +58,34 @@ func (s *Service) ReadyGameRoom(ctx context.Context, roomID string) error {
 	}
 
 	room.State = StateReady
+
+	return s.repo.Update(ctx, room)
+}
+
+func (s *Service) EndGameRoom(ctx context.Context, roomID string, winnerID string) error {
+	room, err := s.repo.GetByID(ctx, roomID)
+	if err != nil {
+		return err
+	}
+	if room == nil {
+		return nil
+	}
+
+	room.State = StateEnded
+
+	return s.repo.Update(ctx, room)
+}
+
+func (s *Service) CrashGameRoom(ctx context.Context, roomID string) error {
+	room, err := s.repo.GetByID(ctx, roomID)
+	if err != nil {
+		return err
+	}
+	if room == nil {
+		return nil
+	}
+
+	room.State = StateCrashed
 
 	return s.repo.Update(ctx, room)
 }
