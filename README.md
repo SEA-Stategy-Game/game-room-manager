@@ -21,11 +21,11 @@ Configuration is loaded with Viper in the following precedence:
 
 ### Config keys
 
-- `port` / `APP_PORT` (int): HTTP port.  
+- `port` / `APP_PORT` (int): HTTP port.
   - **Default**: `8080`
-- `env` / `APP_ENV` (string): Environment name (`local`, `dev`, `prod`, etc.).  
+- `env` / `APP_ENV` (string): Environment name (`local`, `dev`, `prod`, etc.).
   - **Default**: `local`
-- `log_level` / `APP_LOG_LEVEL` (string): Log level (`debug`, `info`, `warn`, `error`).  
+- `log_level` / `APP_LOG_LEVEL` (string): Log level (`debug`, `info`, `warn`, `error`).
   - **Default**: `info`
 
 Example `config/config.yaml`:
@@ -78,20 +78,20 @@ docker run --rm -p 9090:9090 -e APP_PORT=9090 game-room-manager
 ```
 
 ## Running with Docker Compose
-A docker-compose.yml file is provided to run the complete environment, which includes: 
-- game-room-manager: This service (exposed on port 8080). 
+
+A docker-compose.yml file is provided to run the complete environment, which includes:
+
+- game-room-manager: This service (exposed on port 8080).
 - planbackend: The planning API service (exposed on port 5000). It assumes the planning backend repository shares the same root as this repo.
-- redis: Redis cache used by the planning API (exposed on port 6379). 
+- redis: Redis cache used by the planning API (exposed on port 6379).
 
-To start all services in the background, run: 
+To start all services in the background, run:
 
- `bash docker compose up -d --build`
- 
- To stop the services, run: 
+`bash docker compose up -d --build`
 
- `bash docker compose down` 
+To stop the services, run:
 
-
+`bash docker compose down`
 
 ## Logging
 
@@ -110,3 +110,13 @@ Run all tests:
 ```bash
 go test ./...
 ```
+
+## Setting Environment
+
+This projeect uses environment variables to determine certain functions.
+
+For example depending on the platform the command used to launch game rooms differs.
+
+| ENV VARIABLE  | DESCRIPTION                               | EXAMPLE                                                 |
+| ------------- | ----------------------------------------- | ------------------------------------------------------- |
+| GAME_ROOM_CMD | Sets the command used to launch game room | ./gameroom.app/Contents/MacOS/Core --headless -- --port |
