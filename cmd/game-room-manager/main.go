@@ -1,15 +1,23 @@
 package main
 
 import (
+	"log"
 	"os"
 
 	"github.com/SEA-Stategy-Game/game-room-manager/internal/config"
 	"github.com/SEA-Stategy-Game/game-room-manager/internal/httpserver"
 	"github.com/SEA-Stategy-Game/game-room-manager/internal/logger"
+	"github.com/joho/godotenv"
 	"go.uber.org/zap"
 )
 
 func main() {
+
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("Error loading .env file")
+	}
+
 	cfg, err := config.Load()
 	if err != nil {
 		zap.L().Fatal("failed to load config", zap.Error(err))
@@ -36,4 +44,3 @@ func main() {
 		os.Exit(1)
 	}
 }
-

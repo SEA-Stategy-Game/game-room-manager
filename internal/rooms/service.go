@@ -2,9 +2,7 @@ package rooms
 
 import (
 	"context"
-
-	"github.com/google/uuid"
-	"github.com/moby/moby/client"
+	"fmt"
 )
 
 // Service is the application/service layer (use-cases) for rooms.
@@ -47,39 +45,21 @@ func (s *Service) JoinGameRoom(ctx context.Context, roomID string, playerID stri
 }
 
 func (s *Service) RegisterGameRoom(ctx context.Context) (Room, error) {
-	id := uuid.New().String()
 
-	containerID, err := startContainer(ctx, s.gameImage)
+	// This spawns a new process via os/exec and returns the PID of the child process
+	pid, err := SpawnGameRoom(1234)
+
 	if err != nil {
 		return Room{}, err
 	}
 
 	room := Room{
-		RoomID:            id,
-		ConnectionDetails: containerID,
-		State:             StateActive,
-		Participants:      0,
-		Players:           []string{},
-	}
-
-	if err := s.repo.Create(ctx, &room); err != nil {
-		return Room{}, err
+		RoomID:       fmt.Sprint(pid),
+		Participants: 0,
+		Port:         1234,
+		State:        StateActive,
+		Players:      []string{},
 	}
 
 	return room, nil
-}
-
-func startContainer(ctx context.Context, image string) (string, error) {
-
-	cli, err := client.New(client.FromEnv)
-	if err != nil {
-		return "", err
-	}
-
-	container, err := cli.ContainerCreate(ctx, client.ContainerCreateOptions{Image: image})
-
-	_, err = cli.ContainerStart(ctx, container.ID, client.ContainerStartOptions{})
-
-	return container.ID, err
-
 }
