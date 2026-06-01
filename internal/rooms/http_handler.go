@@ -18,8 +18,48 @@ func NewHandler(svc *Service, log *zap.Logger) *Handler {
 	return &Handler{svc: svc, log: log}
 }
 
+// Helper functions for querying.
+func findPlayer(rooms []Room, searchPlayer string) ([]Room, error) {
+	var found []Room
+
+	for _, room := range rooms {
+		for _, player := range room.Players {
+			if player == searchPlayer {
+				found = append(found, room)
+			}
+		}
+	}
+	return found, nil
+}
+
+func findByStatus(rooms []Room, searchStat string) ([]Room, error) {
+	var found []Room
+
+	targetState := State(searchStat)
+
+	for _, room := range rooms {
+		if room.State == targetState {
+			found = append(found, room)
+		}
+	}
+	return found, nil
+}
+
 func (h *Handler) GetRooms(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query()
 	rooms, err := h.svc.ListRooms(r.Context())
+
+	// Check for a query, if not, just show all.
+	player := query.Get("player")
+	status := query.Get("status")
+	if player != "" {
+		rooms, err = findPlayer(rooms, player)
+	}
+
+	if status != "" {
+		rooms, err = findByStatus(rooms, status)
+	}
+
 	if err != nil {
 		h.log.Error("failed to list rooms", zap.Error(err))
 		http.Error(w, "internal error", http.StatusInternalServerError)

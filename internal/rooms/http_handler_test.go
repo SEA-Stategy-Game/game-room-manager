@@ -99,3 +99,76 @@ func TestJoinRoom_AddsPlayerToRoom(t *testing.T) {
 		t.Fatalf("expected participants 2, got %d", updated.Participants)
 	}
 }
+
+func TestFindPlayerStatus(t *testing.T) {
+	t.Parallel()
+
+	repo := NewInMemoryRepository([]Room{
+		{
+			RoomID:            "room-123",
+			ConnectionDetails: "ws://example/rooms/room-123",
+			State:             StateActive,
+			Participants:      1,
+			Players:           []string{"player-1"},
+		},
+		{
+			RoomID:            "room-345",
+			ConnectionDetails: "ws://example/rooms/room-345",
+			State:             StateActive,
+			Participants:      1,
+			Players:           []string{"player-2"},
+		},
+		{
+			RoomID:            "room-133",
+			ConnectionDetails: "ws://example/rooms/room-133",
+			State:             StateActive,
+			Participants:      1,
+			Players:           []string{"player-2", "player-3"},
+		},
+		{
+			RoomID:            "room-163",
+			ConnectionDetails: "ws://example/rooms/room-163",
+			State:             StateInactive,
+			Participants:      1,
+			Players:           []string{"player-1", "player-3"},
+		},
+	})
+	svc := NewService(repo, "test-game-image:latest")
+	h := NewHandler(svc, zap.NewNop())
+
+	r := chi.NewRouter()
+	r.Get("/rooms", h.GetRooms)
+
+	req := httptest.NewRequest(http.MethodGet, "/rooms?player=player-1", nil)
+	rec := httptest.NewRecorder()
+
+	r.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, rec.Code)
+	}
+
+	var filteredRooms1 []Room
+	if err := json.Unmarshal(rec.Body.Bytes(), &filteredRooms1); err != nil {
+		t.Fatalf("failed to parse response JSON: %v", err)
+	}
+	if len(filteredRooms1) != 2 {
+		t.Fatalf("expected 2 filtered rooms for player-1, got %d", len(filteredRooms1))
+	}
+	req = httptest.NewRequest(http.MethodGet, "/rooms?status=active", nil)
+	rec = httptest.NewRecorder()
+
+	r.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, rec.Code)
+	}
+
+	var filteredRooms2 []Room
+	if err := json.Unmarshal(rec.Body.Bytes(), &filteredRooms2); err != nil {
+		t.Fatalf("failed to parse response JSON: %v", err)
+	}
+	if len(filteredRooms2) != 3 {
+		t.Fatalf("expected 3 filtered active rooms, got %d", len(filteredRooms2))
+	}
+}
