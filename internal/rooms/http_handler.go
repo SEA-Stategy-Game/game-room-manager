@@ -124,3 +124,16 @@ func (h *Handler) CreateGame(w http.ResponseWriter, r *http.Request) {
 		h.log.Error("failed to encode room response", zap.Error(err))
 	}
 }
+
+func (h *Handler) SetReady(w http.ResponseWriter, r *http.Request) {
+	roomID := chi.URLParam(r, "roomId")
+
+	if err := h.svc.ReadyGameRoom(r.Context(), roomID); err != nil {
+		h.log.Error("failed to set to ready state", zap.Error(err))
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write([]byte("room set to ready"))
+}

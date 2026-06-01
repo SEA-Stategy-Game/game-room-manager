@@ -44,6 +44,20 @@ func (s *Service) JoinGameRoom(ctx context.Context, roomID string, playerID stri
 	return s.repo.Update(ctx, room)
 }
 
+func (s *Service) ReadyGameRoom(ctx context.Context, roomID string) error {
+	room, err := s.repo.GetByID(ctx, roomID)
+	if err != nil {
+		return err
+	}
+	if room == nil {
+		return nil
+	}
+
+	room.State = StateReady
+
+	return s.repo.Update(ctx, room)
+}
+
 func (s *Service) RegisterGameRoom(ctx context.Context) (Room, error) {
 
 	// This spawns a new process via os/exec and returns the PID of the child process

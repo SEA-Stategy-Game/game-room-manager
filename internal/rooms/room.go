@@ -4,8 +4,15 @@ package rooms
 type State string
 
 const (
+	// Deprecated, here for historical reasons
 	StateActive   State = "active"
 	StateInactive State = "inactive"
+	// States:
+	StateIniting State = "initing"
+	StateReady   State = "ready"
+	StateRunning State = "running"
+	StateEnded   State = "ended"
+	StateCrashed State = "crashed"
 )
 
 // Room is the main entity for the game-room-manager domain.
@@ -18,4 +25,3 @@ type Room struct {
 	Port              int      `json:"port"`
 	Players           []string `json:"players"`
 }
-
