@@ -45,6 +45,23 @@ func findByStatus(rooms []Room, searchStat string) ([]Room, error) {
 	return found, nil
 }
 
+func findDouble(rooms []Room, searchPlayer string, searchStat string) ([]Room, error) {
+	var found []Room
+
+	targetState := State(searchStat)
+
+	for _, room := range rooms {
+		if room.State == targetState {
+			for _, player := range room.Players {
+				if player == searchPlayer {
+					found = append(found, room)
+				}
+			}
+		}
+	}
+	return found, nil
+}
+
 func (h *Handler) GetRooms(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 	rooms, err := h.svc.ListRooms(r.Context())
@@ -52,12 +69,16 @@ func (h *Handler) GetRooms(w http.ResponseWriter, r *http.Request) {
 	// Check for a query, if not, just show all.
 	player := query.Get("player")
 	status := query.Get("status")
-	if player != "" {
+	if player != "" && status == "" {
 		rooms, err = findPlayer(rooms, player)
 	}
 
-	if status != "" {
+	if status != "" && player == "" {
 		rooms, err = findByStatus(rooms, status)
+	}
+
+	if player != "" && status != "" {
+		rooms, err = findDouble(rooms, player, status)
 	}
 
 	if err != nil {

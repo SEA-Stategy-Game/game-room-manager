@@ -168,7 +168,24 @@ func TestFindPlayerStatus(t *testing.T) {
 	if err := json.Unmarshal(rec.Body.Bytes(), &filteredRooms2); err != nil {
 		t.Fatalf("failed to parse response JSON: %v", err)
 	}
+
 	if len(filteredRooms2) != 3 {
 		t.Fatalf("expected 3 filtered active rooms, got %d", len(filteredRooms2))
+	}
+	req = httptest.NewRequest(http.MethodGet, "/rooms?player=player-3&status=inactive", nil)
+	rec = httptest.NewRecorder()
+
+	r.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, rec.Code)
+	}
+
+	var filteredRooms3 []Room
+	if err := json.Unmarshal(rec.Body.Bytes(), &filteredRooms3); err != nil {
+		t.Fatalf("failed to parse response JSON: %v", err)
+	}
+	if len(filteredRooms3) != 1 {
+		t.Fatalf("expected 1 filtered active rooms, got %d", len(filteredRooms3))
 	}
 }
