@@ -52,11 +52,7 @@ func New(cfg *config.Config, logger *zap.Logger) *Server {
 	r.Get("/room/{roomId}", roomHandler.GetRoom)
 	r.Post("/rooms/{roomId}/players/{playerId}/join", roomHandler.JoinRoom)
 	r.Post("/rooms/create", roomHandler.CreateGame)
-	r.Post("/rooms/{roomId}/status/{status}", roomHandler.SetStatus)
-	r.Post("/rooms/{roomId}/status/{status}/{winnerId}", roomHandler.SetStatus)
-	// r.Post(("/rooms/{roomId}/ready"), roomHandler.SetReady)
-	// r.Post(("/rooms/{roomId}/crash"), roomHandler.SetReady)
-	// r.Post(("/rooms/{roomId}/end/{winner}"), roomHandler.SetEnded)
+	r.Post("/rooms/{roomId}/status", roomHandler.SetStatus)
 
 	r.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		logger.Info("health check", zap.String("path", r.URL.Path), zap.String("method", r.Method))

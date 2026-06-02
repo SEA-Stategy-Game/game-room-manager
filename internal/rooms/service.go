@@ -50,35 +50,6 @@ func (s *Service) JoinGameRoom(ctx context.Context, roomID string, playerID stri
 	return s.repo.Update(ctx, room)
 }
 
-// func (s *Service) ReadyGameRoom(ctx context.Context, roomID string) error {
-// 	room, err := s.repo.GetByID(ctx, roomID)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	if room == nil {
-// 		return nil
-// 	}
-
-// 	room.State = StateReady
-
-// 	return s.repo.Update(ctx, room)
-// }
-
-// func (s *Service) EndGameRoom(ctx context.Context, roomID string, winnerID string) error {
-// 	room, err := s.repo.GetByID(ctx, roomID)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	if room == nil {
-// 		return nil
-// 	}
-
-// 	room.Winner = winnerID
-// 	room.State = StateEnded
-
-// 	return s.repo.Update(ctx, room)
-// }
-
 func (s *Service) SetGameStatus(ctx context.Context, roomID string, status string, winner string) error {
 	room, err := s.repo.GetByID(ctx, roomID)
 	if err != nil {
@@ -126,20 +97,6 @@ func (s *Service) SetGameStatus(ctx context.Context, roomID string, status strin
 
 	return s.repo.Update(ctx, room)
 }
-
-// func (s *Service) CrashGameRoom(ctx context.Context, roomID string) error {
-// 	room, err := s.repo.GetByID(ctx, roomID)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	if room == nil {
-// 		return nil
-// 	}
-
-// 	room.State = StateCrashed
-
-// 	return s.repo.Update(ctx, room)
-// }
 
 func (s *Service) RegisterGameRoom(ctx context.Context) (Room, error) {
 
