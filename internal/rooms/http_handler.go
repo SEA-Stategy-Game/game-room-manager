@@ -2,6 +2,7 @@ package rooms
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -118,7 +119,12 @@ func (h *Handler) JoinRoom(w http.ResponseWriter, r *http.Request) {
 	roomID := chi.URLParam(r, "roomId")
 	playerID := chi.URLParam(r, "playerId")
 
-	if err := h.svc.JoinGameRoom(r.Context(), roomID, playerID); err != nil {
+	err := h.svc.JoinGameRoom(r.Context(), roomID, playerID)
+	if err != nil {
+		if errors.Is(err, ErrRoomFull) {
+			http.Error(w, err.Error(), http.StatusConflict)
+			return
+		}
 		h.log.Error("failed to join room", zap.Error(err))
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
@@ -128,8 +134,22 @@ func (h *Handler) JoinRoom(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write([]byte("player joined"))
 }
 
+type CreateGameRequest struct {
+	MaxNumberOfPlayer *int `json:"maxNumberOfPlayer,omitempty"`
+}
+
 func (h *Handler) CreateGame(w http.ResponseWriter, r *http.Request) {
-	room, err := h.svc.RegisterGameRoom(r.Context())
+	var req CreateGameRequest
+	if r.Body != http.NoBody {
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			h.log.Error("failed to decode request body", zap.Error(err))
+			http.Error(w, "invalid request body", http.StatusBadRequest)
+			return
+		}
+		defer r.Body.Close()
+	}
+
+	room, err := h.svc.RegisterGameRoom(r.Context(), req.MaxNumberOfPlayer)
 	if err != nil {
 		h.log.Error("failed to create game", zap.Error(err))
 		http.Error(w, "internal error", http.StatusInternalServerError)
@@ -145,9 +165,10 @@ func (h *Handler) CreateGame(w http.ResponseWriter, r *http.Request) {
 }
 
 type RegisterManualGameRequest struct {
-	RoomID  string `json:"roomId"`
-	Address string `json:"address"`
-	Port    int    `json:"port"`
+	RoomID            string `json:"roomId"`
+	Address           string `json:"address"`
+	Port              int    `json:"port"`
+	MaxNumberOfPlayer *int   `json:"maxNumberOfPlayer,omitempty"`
 }
 
 // RegisterManualGame is used for the local test gaming room that is manually created.
@@ -165,7 +186,7 @@ func (h *Handler) RegisterManualGame(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	room, err := h.svc.RegisterManualGame(r.Context(), req.RoomID, req.Address, req.Port)
+	room, err := h.svc.RegisterManualGame(r.Context(), req.RoomID, req.Address, req.Port, req.MaxNumberOfPlayer)
 	if err != nil {
 		h.log.Error("failed to create manual game", zap.Error(err))
 		http.Error(w, "internal error", http.StatusInternalServerError)

@@ -90,6 +90,71 @@ func TestJoinRoom_AddsPlayerToRoom(t *testing.T) {
 	}
 }
 
+func TestJoinRoom_FullRoom(t *testing.T) {
+	t.Parallel()
+
+	maxPlayers := 2
+	repo := NewInMemoryRepository([]Room{
+		{
+			RoomID:            "room-full",
+			State:             StateIniting,
+			Players:           []string{"player-1", "player-2"},
+			MaxNumberOfPlayer: &maxPlayers,
+		},
+	})
+	svc := NewService(repo, "test-game-image:latest")
+	h := NewHandler(svc, zap.NewNop())
+
+	r := chi.NewRouter()
+	r.Post("/rooms/{roomId}/players/{playerId}/join", h.JoinRoom)
+
+	req := httptest.NewRequest(http.MethodPost, "/rooms/room-full/players/player-3/join", nil)
+	rec := httptest.NewRecorder()
+
+	r.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusConflict {
+		t.Fatalf("expected status %d, got %d", http.StatusConflict, rec.Code)
+	}
+
+	expectedBody := "room is full\n"
+	if rec.Body.String() != expectedBody {
+		t.Fatalf("expected body %q, got %q", expectedBody, rec.Body.String())
+	}
+
+	updated, _ := repo.GetByID(req.Context(), "room-full")
+	if len(updated.Players) != 2 {
+		t.Fatalf("expected 2 players, got %d", len(updated.Players))
+	}
+}
+
+func TestJoinRoom_NoLimit(t *testing.T) {
+	t.Parallel()
+
+	repo := NewInMemoryRepository([]Room{
+		{
+			RoomID:            "room-no-limit",
+			State:             StateIniting,
+			Players:           []string{"player-1", "player-2"},
+			MaxNumberOfPlayer: nil, // No limit
+		},
+	})
+	svc := NewService(repo, "test-game-image:latest")
+	h := NewHandler(svc, zap.NewNop())
+
+	r := chi.NewRouter()
+	r.Post("/rooms/{roomId}/players/{playerId}/join", h.JoinRoom)
+
+	req := httptest.NewRequest(http.MethodPost, "/rooms/room-no-limit/players/player-3/join", nil)
+	rec := httptest.NewRecorder()
+
+	r.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, rec.Code)
+	}
+}
+
 func TestFindPlayerStatus(t *testing.T) {
 	t.Parallel()
 
@@ -389,6 +454,96 @@ func TestFindRoom(t *testing.T) {
 	}
 }
 
+func TestCreateGame(t *testing.T) {
+	t.Parallel()
+
+	intPtr := func(i int) *int { return &i }
+
+	type testCase struct {
+		name              string
+		payload           interface{}
+		expectedStatus    int
+		expectedMaxPlayer *int
+	}
+
+	tests := []testCase{
+		{
+			name: "successful creation with max players",
+			payload: CreateGameRequest{
+				MaxNumberOfPlayer: intPtr(2),
+			},
+			expectedStatus:    http.StatusCreated,
+			expectedMaxPlayer: intPtr(2),
+		},
+		{
+			name:              "successful creation without max players (nil payload)",
+			payload:           nil,
+			expectedStatus:    http.StatusCreated,
+			expectedMaxPlayer: intPtr(32),
+		},
+		{
+			name:              "successful creation with empty request body",
+			payload:           CreateGameRequest{},
+			expectedStatus:    http.StatusCreated,
+			expectedMaxPlayer: intPtr(32),
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			repo := NewInMemoryRepository([]Room{})
+			svc := NewService(repo, "test-game-image:latest")
+			h := NewHandler(svc, zap.NewNop())
+
+			r := chi.NewRouter()
+			r.Post("/rooms/create", h.CreateGame)
+
+			var reqBody io.Reader
+			if tc.payload != nil {
+				body, err := json.Marshal(tc.payload)
+				if err != nil {
+					t.Fatalf("failed to marshal payload: %v", err)
+				}
+				reqBody = bytes.NewBuffer(body)
+			}
+
+			req := httptest.NewRequest(http.MethodPost, "/rooms/create", reqBody)
+			rec := httptest.NewRecorder()
+
+			r.ServeHTTP(rec, req)
+
+			if rec.Code != tc.expectedStatus {
+				t.Fatalf("expected status %d, got %d. Body: %s", tc.expectedStatus, rec.Code, rec.Body.String())
+			}
+
+			var room Room
+			if err := json.Unmarshal(rec.Body.Bytes(), &room); err != nil {
+				t.Fatalf("failed to unmarshal response body: %v", err)
+			}
+
+			if tc.expectedMaxPlayer == nil {
+				if room.MaxNumberOfPlayer != nil {
+					t.Errorf("expected max players to be nil, got %d", *room.MaxNumberOfPlayer)
+				}
+			} else {
+				if room.MaxNumberOfPlayer == nil {
+					t.Errorf("expected max players to be %d, got nil", *tc.expectedMaxPlayer)
+				} else if *room.MaxNumberOfPlayer != *tc.expectedMaxPlayer {
+					t.Errorf("expected max players to be %d, got %d", *tc.expectedMaxPlayer, *room.MaxNumberOfPlayer)
+				}
+			}
+
+			_, err := repo.GetByID(context.Background(), room.RoomID)
+			if err != nil {
+				t.Fatalf("failed to get room from repo: %v", err)
+			}
+		})
+	}
+}
+
 func TestRegisterManualGame(t *testing.T) {
 	t.Parallel()
 
@@ -399,13 +554,16 @@ func TestRegisterManualGame(t *testing.T) {
 		checkFn        func(t *testing.T, repo *InMemoryRepository, body *bytes.Buffer)
 	}
 
+	intPtr := func(i int) *int { return &i }
+
 	tests := []testCase{
 		{
-			name: "successful creation",
+			name: "successful creation with max players",
 			payload: RegisterManualGameRequest{
 				RoomID:  "manual-room-1",
 				Address: "localhost",
 				Port:    9876,
+				MaxNumberOfPlayer: intPtr(8),
 			},
 			expectedStatus: http.StatusCreated,
 			checkFn: func(t *testing.T, repo *InMemoryRepository, body *bytes.Buffer) {
@@ -419,6 +577,9 @@ func TestRegisterManualGame(t *testing.T) {
 				if room.State != StateIniting {
 					t.Errorf("expected state %q, got %q", StateIniting, room.State)
 				}
+				if room.MaxNumberOfPlayer == nil || *room.MaxNumberOfPlayer != 8 {
+					t.Errorf("expected maxNumberOfPlayer to be 8, got %v", room.MaxNumberOfPlayer)
+				}
 
 				created, err := repo.GetByID(context.Background(), "manual-room-1")
 				if err != nil {
@@ -429,6 +590,36 @@ func TestRegisterManualGame(t *testing.T) {
 				}
 				if created.RoomID != "manual-room-1" {
 					t.Errorf("repo: expected roomID %q, got %q", "manual-room-1", created.RoomID)
+				}
+				if created.MaxNumberOfPlayer == nil || *created.MaxNumberOfPlayer != 8 {
+					t.Errorf("repo: expected maxNumberOfPlayer to be 8, got %v", created.MaxNumberOfPlayer)
+				}
+			},
+		},
+		{
+			name: "successful creation without max players",
+			payload: RegisterManualGameRequest{
+				RoomID:  "manual-room-2",
+				Address: "localhost",
+				Port:    9877,
+			},
+			expectedStatus: http.StatusCreated,
+			checkFn: func(t *testing.T, repo *InMemoryRepository, body *bytes.Buffer) {
+				var room Room
+				if err := json.Unmarshal(body.Bytes(), &room); err != nil {
+					t.Fatalf("failed to unmarshal response body: %v", err)
+				}
+
+				if room.MaxNumberOfPlayer == nil || *room.MaxNumberOfPlayer != 32 {
+					t.Errorf("expected maxNumberOfPlayer to be 32, got %v", room.MaxNumberOfPlayer)
+				}
+
+				created, err := repo.GetByID(context.Background(), "manual-room-2")
+				if err != nil {
+					t.Fatalf("failed to get room from repo: %v", err)
+				}
+				if created.MaxNumberOfPlayer == nil || *created.MaxNumberOfPlayer != 32 {
+					t.Errorf("repo: expected maxNumberOfPlayer to be 32, got %v", created.MaxNumberOfPlayer)
 				}
 			},
 		},

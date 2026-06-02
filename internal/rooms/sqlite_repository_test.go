@@ -2,7 +2,9 @@ package rooms
 
 import (
 	"context"
+	"reflect"
 	"testing"
+	"time"
 )
 
 func newTestRepo(t *testing.T) *SQLiteRepository {
@@ -17,12 +19,20 @@ func newTestRepo(t *testing.T) *SQLiteRepository {
 }
 
 func sampleRoom() *Room {
+	maxPlayers := 4
+	// Use truncated time for stable comparison after JSON marshalling/unmarshalling
+	now := time.Now().UTC().Truncate(time.Second)
 	return &Room{
 		RoomID:            "room-1",
 		State:             StateIniting,
 		Address:           "localhost",
 		Port:              9000,
 		Players:           []string{"alice", "bob"},
+		MaxNumberOfPlayer: &maxPlayers,
+		Winner:            "",
+		StartedAt:         now,
+		EndedAt:           now.Add(10 * time.Minute),
+		ProcessID:         12345,
 	}
 }
 
@@ -41,12 +51,8 @@ func TestSQLiteRepository_CreateAndGetByID(t *testing.T) {
 		t.Fatalf("GetByID failed: %v", err)
 	}
 
-	if got.RoomID != room.RoomID {
-		t.Fatalf("expected %s, got %s", room.RoomID, got.RoomID)
-	}
-
-	if len(got.Players) != 2 {
-		t.Fatalf("expected 2 players, got %d", len(got.Players))
+	if !reflect.DeepEqual(got, room) {
+		t.Errorf("got\n%+v\nwant\n%+v", got, room)
 	}
 }
 
@@ -84,7 +90,9 @@ func TestSQLiteRepository_Update(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	room.State = StateRunning
 	room.Players = append(room.Players, "charlie")
+	room.Winner = "charlie"
 
 	if err := repo.Update(ctx, room); err != nil {
 		t.Fatalf("Update failed: %v", err)
@@ -95,8 +103,8 @@ func TestSQLiteRepository_Update(t *testing.T) {
 		t.Fatalf("GetByID failed: %v", err)
 	}
 
-	if len(got.Players) != 3 {
-		t.Fatalf("expected 3 players, got %d", len(got.Players))
+	if !reflect.DeepEqual(got, room) {
+		t.Errorf("got\n%+v\nwant\n%+v", got, room)
 	}
 }
 

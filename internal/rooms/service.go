@@ -2,12 +2,15 @@ package rooms
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"time"
 
 	"github.com/google/uuid"
 )
+
+var ErrRoomFull = errors.New("room is full")
 
 // Service is the application/service layer (use-cases) for rooms.
 type Service struct {
@@ -37,6 +40,10 @@ func (s *Service) JoinGameRoom(ctx context.Context, roomID string, playerID stri
 	}
 	if room == nil {
 		return nil
+	}
+
+	if room.MaxNumberOfPlayer != nil && len(room.Players) >= *room.MaxNumberOfPlayer {
+		return ErrRoomFull
 	}
 
 	// Ensure the player isn't already in the room
@@ -102,7 +109,7 @@ func (s *Service) SetGameStatus(ctx context.Context, roomID string, status strin
 	return s.repo.Update(ctx, room)
 }
 
-func (s *Service) RegisterGameRoom(ctx context.Context) (*Room, error) {
+func (s *Service) RegisterGameRoom(ctx context.Context, maxPlayers *int) (*Room, error) {
 
 	var pid int
 	var err error
@@ -116,6 +123,11 @@ func (s *Service) RegisterGameRoom(ctx context.Context) (*Room, error) {
 		}
 	}
 
+	if maxPlayers == nil {
+		defaultValue := 32
+		maxPlayers = &defaultValue
+	}
+
 	room := &Room{
 		RoomID:            uuid.New().String(),
 		State:             StateIniting,
@@ -126,13 +138,19 @@ func (s *Service) RegisterGameRoom(ctx context.Context) (*Room, error) {
 		StartedAt:         time.Time{},
 		EndedAt:           time.Time{},
 		ProcessID:         pid,
+		MaxNumberOfPlayer: maxPlayers,
 	}
 
 	return room, s.repo.Create(ctx, room)
 }
 
 // RegisterManualGame creates a room record for a game room that was started manually.
-func (s *Service) RegisterManualGame(ctx context.Context, roomID string, address string, port int) (*Room, error) {
+func (s *Service) RegisterManualGame(ctx context.Context, roomID string, address string, port int, maxPlayers *int) (*Room, error) {
+	if maxPlayers == nil {
+		defaultValue := 32
+		maxPlayers = &defaultValue
+	}
+
 	room := &Room{
 		RoomID:    roomID,
 		State:     StateIniting,
@@ -143,6 +161,7 @@ func (s *Service) RegisterManualGame(ctx context.Context, roomID string, address
 		StartedAt: time.Time{},
 		EndedAt:   time.Time{},
 		ProcessID: 0,
+		MaxNumberOfPlayer: maxPlayers,
 	}
 
 	return room, s.repo.Create(ctx, room)

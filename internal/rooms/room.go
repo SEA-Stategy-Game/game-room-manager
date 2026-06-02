@@ -21,6 +21,7 @@ type Room struct {
 	Address           string    `json:"address"`
 	Port              int       `json:"port"`
 	Players           []string  `json:"players"`
+	MaxNumberOfPlayer *int      `json:"maxNumberOfPlayer,omitempty"`
 	Winner            string    `json:"winner"`
 	StartedAt         time.Time `json:"startedAt"`
 	EndedAt           time.Time `json:"endedAt"`
