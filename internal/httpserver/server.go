@@ -41,11 +41,20 @@ func zapRequestLogger(log *zap.Logger) func(http.Handler) http.Handler {
 	}
 }
 
-func New(cfg *config.Config, logger *zap.Logger) *Server {
+func New(cfg *config.Config, logger *zap.Logger) (*Server, error) {
 	r := chi.NewRouter()
 	r.Use(zapRequestLogger(logger))
 
-	roomRepo, _ := rooms.NewJSONRepository("rooms.json")
+	dbPath := os.Getenv("DB_PATH") // Get path from environment
+	if dbPath == "" {
+		dbPath = "manager.db" // Default to current directory for local dev
+	}
+	logger.Info("initializing database", zap.String("path", dbPath))
+
+	roomRepo, err := rooms.NewSQLiteRepository(dbPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize room repository: %w", err)
+	}
 	roomSvc := rooms.NewService(roomRepo, cfg.GameImage)
 	roomHandler := rooms.NewHandler(roomSvc, logger)
 	r.Get("/rooms", roomHandler.GetRooms)
@@ -77,7 +86,7 @@ func New(cfg *config.Config, logger *zap.Logger) *Server {
 		cfg:    cfg,
 		logger: logger,
 		server: srv,
-	}
+	}, nil
 }
 
 func (s *Server) Run() error {

@@ -1,5 +1,5 @@
 ## Build stage
-FROM golang:1.24-alpine AS builder
+FROM golang:1.25-alpine AS builder
 
 WORKDIR /app
 
@@ -16,7 +16,8 @@ COPY . .
 
 RUN go build -o /bin/game-room-manager ./cmd/game-room-manager
 
-## Runtime stage
+# Create a directory for the database
+RUN mkdir /data
 FROM gcr.io/distroless/base-debian12
 
 WORKDIR /app
@@ -28,6 +29,8 @@ EXPOSE 8080
 
 COPY --from=builder /bin/game-room-manager /app/game-room-manager
 COPY config ./config
+# Copy the data directory and set ownership to the nonroot user
+COPY --from=builder --chown=nonroot:nonroot /data /data
 
 USER nonroot:nonroot
 

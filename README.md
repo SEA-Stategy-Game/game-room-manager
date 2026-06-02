@@ -1,4 +1,4 @@
-# game-room-manager
+  # game-room-manager
 
 Minimal Go HTTP service template using:
 
@@ -8,7 +8,7 @@ Minimal Go HTTP service template using:
 
 ## Requirements
 
-- Go 1.22+
+- Go 1.25+
 - Docker (optional, for container builds)
 
 ## Configuration

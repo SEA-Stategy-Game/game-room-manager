@@ -9,6 +9,8 @@ services:
       # Expose the host's Docker socket to the container so the 
       # game-room-manager's Docker client can start game containers
       - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - DB_PATH=/data/manager.db
 
   planbackend:
     build:

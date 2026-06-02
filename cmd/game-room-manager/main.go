@@ -33,11 +33,13 @@ func main() {
 
 	log.Info("starting game-room-manager service",
 		zap.Int("port", cfg.Port),
-		zap.String("env", cfg.Env),
 		zap.String("log_level", cfg.LogLevel),
 	)
 
-	srv := httpserver.New(cfg, log)
+	srv, err := httpserver.New(cfg, log)
+	if err != nil {
+		log.Fatal("failed to create http server", zap.Error(err))
+	}
 
 	if err := srv.Run(); err != nil {
 		log.Error("server exited with error", zap.Error(err))
