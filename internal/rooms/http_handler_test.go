@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"context"
+	"io"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -255,21 +256,12 @@ func TestSetGameStatus_AllStates(t *testing.T) {
 
 	tests := []testCase{
 		{
-			name:           "Create new room when status is ready and room doesn't exist",
-			roomID:         "room-new-ready",
-			statusParam:    "ready",
-			winnerParam:    nil,
-			initialRoom:    nil,
-			expectedStatus: http.StatusOK,
-			expectedState:  StateReady,
-		},
-		{
-			name:           "Do nothing and return OK if room doesn't exist and status is not ready",
+			name:           "Return Not Found if room doesn't exist",
 			roomID:         "room-nonexistent",
 			statusParam:    "running",
 			winnerParam:    nil,
 			initialRoom:    nil,
-			expectedStatus: http.StatusOK,
+			expectedStatus: http.StatusNotFound,
 			expectedState:  "",
 		},
 		{

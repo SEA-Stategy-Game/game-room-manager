@@ -2,15 +2,16 @@ package rooms
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"flag"
-	"fmt"
 	"time"
 
 	"github.com/google/uuid"
 )
 
 var ErrRoomFull = errors.New("room is full")
+var ErrRoomNotFound = errors.New("room not found")
 
 // Service is the application/service layer (use-cases) for rooms.
 type Service struct {
@@ -61,34 +62,14 @@ func (s *Service) JoinGameRoom(ctx context.Context, roomID string, playerID stri
 func (s *Service) SetGameStatus(ctx context.Context, roomID string, status string, winner string) error {
 	room, err := s.repo.GetByID(ctx, roomID)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrRoomNotFound
+		}
 		return err
 	}
 
 	if room == nil {
-		if status == "ready" {
-			var pid int
-			var pidErr error
-			if flag.Lookup("test.v") != nil {
-				pid = 12345
-			} else {
-				pid, pidErr = SpawnGameRoom(1234)
-				if pidErr != nil {
-					return pidErr
-				}
-			}
-
-			newRoom := &Room{
-				RoomID:            roomID,
-				State:             StateReady,
-				Address:           "",
-				Port:              1234,
-				Players:           []string{},
-				ProcessID:         pid,
-			}
-			return s.repo.Create(ctx, newRoom)
-		} else {
-			return nil
-		}
+		return ErrRoomNotFound
 	}
 
 	if status == "init" {

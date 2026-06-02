@@ -227,7 +227,12 @@ func (h *Handler) SetStatus(w http.ResponseWriter, r *http.Request) {
 		winner = *req.Winner
 	}
 
-	if err := h.svc.SetGameStatus(r.Context(), roomID, req.Status, winner); err != nil {
+	err := h.svc.SetGameStatus(r.Context(), roomID, req.Status, winner)
+	if err != nil {
+		if errors.Is(err, ErrRoomNotFound) {
+			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		}
 		h.log.Error("failed to set state", zap.Error(err))
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
