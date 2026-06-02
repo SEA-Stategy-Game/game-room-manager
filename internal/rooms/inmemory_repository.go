@@ -18,18 +18,14 @@ func NewDefaultInMemoryRepository() *InMemoryRepository {
 	return NewInMemoryRepository([]Room{
 		{
 			RoomID:            "room-1",
-			ConnectionDetails: "ws://localhost:8080/rooms/room-1",
-			State:             StateActive,
-			Participants:      3,
+			State:             StateIniting,
 			Address:           "127.0.0.1",
 			Port:              12345,
 			Players:           []string{},
 		},
 		{
 			RoomID:            "room-2",
-			ConnectionDetails: "ws://localhost:8080/rooms/room-2",
-			State:             StateInactive,
-			Participants:      0,
+			State:             StateEnded,
 			Players:           []string{},
 		},
 	})

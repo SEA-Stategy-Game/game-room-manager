@@ -2,10 +2,16 @@ package rooms
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"flag"
-	"fmt"
 	"time"
+
+	"github.com/google/uuid"
 )
+
+var ErrRoomFull = errors.New("room is full")
+var ErrRoomNotFound = errors.New("room not found")
 
 // Service is the application/service layer (use-cases) for rooms.
 type Service struct {
@@ -37,6 +43,10 @@ func (s *Service) JoinGameRoom(ctx context.Context, roomID string, playerID stri
 		return nil
 	}
 
+	if room.MaxNumberOfPlayer != nil && len(room.Players) >= *room.MaxNumberOfPlayer {
+		return ErrRoomFull
+	}
+
 	// Ensure the player isn't already in the room
 	for _, p := range room.Players {
 		if p == playerID {
@@ -45,7 +55,6 @@ func (s *Service) JoinGameRoom(ctx context.Context, roomID string, playerID stri
 	}
 
 	room.Players = append(room.Players, playerID)
-	room.Participants++
 
 	return s.repo.Update(ctx, room)
 }
@@ -53,31 +62,14 @@ func (s *Service) JoinGameRoom(ctx context.Context, roomID string, playerID stri
 func (s *Service) SetGameStatus(ctx context.Context, roomID string, status string, winner string) error {
 	room, err := s.repo.GetByID(ctx, roomID)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrRoomNotFound
+		}
 		return err
 	}
 
 	if room == nil {
-		if status == "ready" {
-			newRoom, err := s.RegisterGameRoom(ctx)
-			if err != nil {
-				return fmt.Errorf("failed to register game room: %w", err)
-			}
-
-			room = &Room{
-				RoomID:            roomID,
-				ConnectionDetails: newRoom.ConnectionDetails,
-				State:             newRoom.State,
-				Participants:      newRoom.Participants,
-				Address:           newRoom.Address,
-				Port:              newRoom.Port,
-				Players:           newRoom.Players,
-				Winner:            newRoom.Winner,
-				StartedAt:         newRoom.StartedAt,
-				EndedAt:           newRoom.EndedAt,
-			}
-		} else {
-			return nil
-		}
+		return ErrRoomNotFound
 	}
 
 	if status == "init" {
@@ -98,7 +90,7 @@ func (s *Service) SetGameStatus(ctx context.Context, roomID string, status strin
 	return s.repo.Update(ctx, room)
 }
 
-func (s *Service) RegisterGameRoom(ctx context.Context) (Room, error) {
+func (s *Service) RegisterGameRoom(ctx context.Context, maxPlayers *int) (*Room, error) {
 
 	var pid int
 	var err error
@@ -108,26 +100,50 @@ func (s *Service) RegisterGameRoom(ctx context.Context) (Room, error) {
 	} else {
 		pid, err = SpawnGameRoom(1234)
 		if err != nil {
-			return Room{}, err
+			return nil, err
 		}
 	}
 
-	if err != nil {
-		return Room{}, err
+	if maxPlayers == nil {
+		defaultValue := 32
+		maxPlayers = &defaultValue
 	}
 
-	room := Room{
-		RoomID:            fmt.Sprint(pid),
-		ConnectionDetails: "",
-		State:             StateActive,
-		Participants:      0,
+	room := &Room{
+		RoomID:            uuid.New().String(),
+		State:             StateIniting,
 		Address:           "",
 		Port:              1234,
 		Players:           []string{},
 		Winner:            "",
 		StartedAt:         time.Time{},
 		EndedAt:           time.Time{},
+		ProcessID:         pid,
+		MaxNumberOfPlayer: maxPlayers,
 	}
 
-	return room, nil
+	return room, s.repo.Create(ctx, room)
+}
+
+// RegisterManualGame creates a room record for a game room that was started manually.
+func (s *Service) RegisterManualGame(ctx context.Context, roomID string, address string, port int, maxPlayers *int) (*Room, error) {
+	if maxPlayers == nil {
+		defaultValue := 32
+		maxPlayers = &defaultValue
+	}
+
+	room := &Room{
+		RoomID:    roomID,
+		State:     StateIniting,
+		Address:   address,
+		Port:      port,
+		Players:   []string{},
+		Winner:    "",
+		StartedAt: time.Time{},
+		EndedAt:   time.Time{},
+		ProcessID: 0,
+		MaxNumberOfPlayer: maxPlayers,
+	}
+
+	return room, s.repo.Create(ctx, room)
 }

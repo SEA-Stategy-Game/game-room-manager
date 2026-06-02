@@ -3,6 +3,8 @@ package rooms
 import (
 	"bytes"
 	"encoding/json"
+	"context"
+	"io"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -18,9 +20,7 @@ func TestGetRooms_ReturnsJSONList(t *testing.T) {
 	repo := NewInMemoryRepository([]Room{
 		{
 			RoomID:            "abc",
-			ConnectionDetails: "ws://example/rooms/abc",
-			State:             StateActive,
-			Participants:      2,
+			State:             StateIniting,
 		},
 	})
 	svc := NewService(repo, "test-game-image:latest")
@@ -52,14 +52,8 @@ func TestGetRooms_ReturnsJSONList(t *testing.T) {
 	if rooms[0].RoomID != "abc" {
 		t.Fatalf("expected roomId %q, got %q", "abc", rooms[0].RoomID)
 	}
-	if rooms[0].ConnectionDetails != "ws://example/rooms/abc" {
-		t.Fatalf("expected connectionDetails %q, got %q", "ws://example/rooms/abc", rooms[0].ConnectionDetails)
-	}
-	if rooms[0].State != StateActive {
-		t.Fatalf("expected state %q, got %q", StateActive, rooms[0].State)
-	}
-	if rooms[0].Participants != 2 {
-		t.Fatalf("expected participants %d, got %d", 2, rooms[0].Participants)
+	if rooms[0].State != StateIniting {
+		t.Fatalf("expected state %q, got %q", StateIniting, rooms[0].State)
 	}
 }
 
@@ -69,9 +63,7 @@ func TestJoinRoom_AddsPlayerToRoom(t *testing.T) {
 	repo := NewInMemoryRepository([]Room{
 		{
 			RoomID:            "room-123",
-			ConnectionDetails: "ws://example/rooms/room-123",
-			State:             StateActive,
-			Participants:      1,
+			State:             StateIniting,
 			Players:           []string{"player-1"},
 		},
 	})
@@ -97,8 +89,70 @@ func TestJoinRoom_AddsPlayerToRoom(t *testing.T) {
 	if updated.Players[1] != "player-2" {
 		t.Fatalf("expected player-2, got %q", updated.Players[1])
 	}
-	if updated.Participants != 2 {
-		t.Fatalf("expected participants 2, got %d", updated.Participants)
+}
+
+func TestJoinRoom_FullRoom(t *testing.T) {
+	t.Parallel()
+
+	maxPlayers := 2
+	repo := NewInMemoryRepository([]Room{
+		{
+			RoomID:            "room-full",
+			State:             StateIniting,
+			Players:           []string{"player-1", "player-2"},
+			MaxNumberOfPlayer: &maxPlayers,
+		},
+	})
+	svc := NewService(repo, "test-game-image:latest")
+	h := NewHandler(svc, zap.NewNop())
+
+	r := chi.NewRouter()
+	r.Post("/rooms/{roomId}/players/{playerId}/join", h.JoinRoom)
+
+	req := httptest.NewRequest(http.MethodPost, "/rooms/room-full/players/player-3/join", nil)
+	rec := httptest.NewRecorder()
+
+	r.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusConflict {
+		t.Fatalf("expected status %d, got %d", http.StatusConflict, rec.Code)
+	}
+
+	expectedBody := "room is full\n"
+	if rec.Body.String() != expectedBody {
+		t.Fatalf("expected body %q, got %q", expectedBody, rec.Body.String())
+	}
+
+	updated, _ := repo.GetByID(req.Context(), "room-full")
+	if len(updated.Players) != 2 {
+		t.Fatalf("expected 2 players, got %d", len(updated.Players))
+	}
+}
+
+func TestJoinRoom_NoLimit(t *testing.T) {
+	t.Parallel()
+
+	repo := NewInMemoryRepository([]Room{
+		{
+			RoomID:            "room-no-limit",
+			State:             StateIniting,
+			Players:           []string{"player-1", "player-2"},
+			MaxNumberOfPlayer: nil, // No limit
+		},
+	})
+	svc := NewService(repo, "test-game-image:latest")
+	h := NewHandler(svc, zap.NewNop())
+
+	r := chi.NewRouter()
+	r.Post("/rooms/{roomId}/players/{playerId}/join", h.JoinRoom)
+
+	req := httptest.NewRequest(http.MethodPost, "/rooms/room-no-limit/players/player-3/join", nil)
+	rec := httptest.NewRecorder()
+
+	r.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, rec.Code)
 	}
 }
 
@@ -108,30 +162,22 @@ func TestFindPlayerStatus(t *testing.T) {
 	repo := NewInMemoryRepository([]Room{
 		{
 			RoomID:            "room-123",
-			ConnectionDetails: "ws://example/rooms/room-123",
-			State:             StateActive,
-			Participants:      1,
+			State:             StateIniting,
 			Players:           []string{"player-1"},
 		},
 		{
 			RoomID:            "room-345",
-			ConnectionDetails: "ws://example/rooms/room-345",
-			State:             StateActive,
-			Participants:      1,
+			State:             StateIniting,
 			Players:           []string{"player-2"},
 		},
 		{
 			RoomID:            "room-133",
-			ConnectionDetails: "ws://example/rooms/room-133",
-			State:             StateActive,
-			Participants:      1,
+			State:             StateIniting,
 			Players:           []string{"player-2", "player-3"},
 		},
 		{
 			RoomID:            "room-163",
-			ConnectionDetails: "ws://example/rooms/room-163",
-			State:             StateInactive,
-			Participants:      1,
+			State:             StateEnded,
 			Players:           []string{"player-1", "player-3"},
 		},
 	})
@@ -157,7 +203,7 @@ func TestFindPlayerStatus(t *testing.T) {
 	if len(filteredRooms1) != 2 {
 		t.Fatalf("expected 2 filtered rooms for player-1, got %d", len(filteredRooms1))
 	}
-	req = httptest.NewRequest(http.MethodGet, "/rooms?status=active", nil)
+	req = httptest.NewRequest(http.MethodGet, "/rooms?status=initing", nil)
 	rec = httptest.NewRecorder()
 
 	r.ServeHTTP(rec, req)
@@ -172,9 +218,9 @@ func TestFindPlayerStatus(t *testing.T) {
 	}
 
 	if len(filteredRooms2) != 3 {
-		t.Fatalf("expected 3 filtered active rooms, got %d", len(filteredRooms2))
+		t.Fatalf("expected 3 filtered initing rooms, got %d", len(filteredRooms2))
 	}
-	req = httptest.NewRequest(http.MethodGet, "/rooms?player=player-3&status=inactive", nil)
+	req = httptest.NewRequest(http.MethodGet, "/rooms?player=player-3&status=ended", nil)
 	rec = httptest.NewRecorder()
 
 	r.ServeHTTP(rec, req)
@@ -188,7 +234,7 @@ func TestFindPlayerStatus(t *testing.T) {
 		t.Fatalf("failed to parse response JSON: %v", err)
 	}
 	if len(filteredRooms3) != 1 {
-		t.Fatalf("expected 1 filtered active rooms, got %d", len(filteredRooms3))
+		t.Fatalf("expected 1 filtered ended rooms, got %d", len(filteredRooms3))
 	}
 }
 
@@ -210,21 +256,12 @@ func TestSetGameStatus_AllStates(t *testing.T) {
 
 	tests := []testCase{
 		{
-			name:           "Create new room when status is ready and room doesn't exist",
-			roomID:         "room-new-ready",
-			statusParam:    "ready",
-			winnerParam:    nil,
-			initialRoom:    nil,
-			expectedStatus: http.StatusOK,
-			expectedState:  StateReady,
-		},
-		{
-			name:           "Do nothing and return OK if room doesn't exist and status is not ready",
+			name:           "Return Not Found if room doesn't exist",
 			roomID:         "room-nonexistent",
 			statusParam:    "running",
 			winnerParam:    nil,
 			initialRoom:    nil,
-			expectedStatus: http.StatusOK,
+			expectedStatus: http.StatusNotFound,
 			expectedState:  "",
 		},
 		{
@@ -366,30 +403,22 @@ func TestFindRoom(t *testing.T) {
 	repo := NewInMemoryRepository([]Room{
 		{
 			RoomID:            "room-123",
-			ConnectionDetails: "ws://example/rooms/room-123",
-			State:             StateActive,
-			Participants:      1,
+			State:             StateIniting,
 			Players:           []string{"player-1"},
 		},
 		{
 			RoomID:            "room-345",
-			ConnectionDetails: "ws://example/rooms/room-345",
-			State:             StateActive,
-			Participants:      1,
+			State:             StateIniting,
 			Players:           []string{"player-2"},
 		},
 		{
 			RoomID:            "room-133",
-			ConnectionDetails: "ws://example/rooms/room-133",
-			State:             StateActive,
-			Participants:      1,
+			State:             StateIniting,
 			Players:           []string{"player-2", "player-3"},
 		},
 		{
 			RoomID:            "room-163",
-			ConnectionDetails: "ws://example/rooms/room-163",
-			State:             StateInactive,
-			Participants:      1,
+			State:             StateEnded,
 			Players:           []string{"player-1", "player-3"},
 		},
 	})
@@ -414,5 +443,224 @@ func TestFindRoom(t *testing.T) {
 	}
 	if room.RoomID != "room-133" {
 		t.Fatalf("expected name %s, got %s", "room-133", room.RoomID)
+	}
+}
+
+func TestCreateGame(t *testing.T) {
+	t.Parallel()
+
+	intPtr := func(i int) *int { return &i }
+
+	type testCase struct {
+		name              string
+		payload           interface{}
+		expectedStatus    int
+		expectedMaxPlayer *int
+	}
+
+	tests := []testCase{
+		{
+			name: "successful creation with max players",
+			payload: CreateGameRequest{
+				MaxNumberOfPlayer: intPtr(2),
+			},
+			expectedStatus:    http.StatusCreated,
+			expectedMaxPlayer: intPtr(2),
+		},
+		{
+			name:              "successful creation without max players (nil payload)",
+			payload:           nil,
+			expectedStatus:    http.StatusCreated,
+			expectedMaxPlayer: intPtr(32),
+		},
+		{
+			name:              "successful creation with empty request body",
+			payload:           CreateGameRequest{},
+			expectedStatus:    http.StatusCreated,
+			expectedMaxPlayer: intPtr(32),
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			repo := NewInMemoryRepository([]Room{})
+			svc := NewService(repo, "test-game-image:latest")
+			h := NewHandler(svc, zap.NewNop())
+
+			r := chi.NewRouter()
+			r.Post("/rooms/create", h.CreateGame)
+
+			var reqBody io.Reader
+			if tc.payload != nil {
+				body, err := json.Marshal(tc.payload)
+				if err != nil {
+					t.Fatalf("failed to marshal payload: %v", err)
+				}
+				reqBody = bytes.NewBuffer(body)
+			}
+
+			req := httptest.NewRequest(http.MethodPost, "/rooms/create", reqBody)
+			rec := httptest.NewRecorder()
+
+			r.ServeHTTP(rec, req)
+
+			if rec.Code != tc.expectedStatus {
+				t.Fatalf("expected status %d, got %d. Body: %s", tc.expectedStatus, rec.Code, rec.Body.String())
+			}
+
+			var room Room
+			if err := json.Unmarshal(rec.Body.Bytes(), &room); err != nil {
+				t.Fatalf("failed to unmarshal response body: %v", err)
+			}
+
+			if tc.expectedMaxPlayer == nil {
+				if room.MaxNumberOfPlayer != nil {
+					t.Errorf("expected max players to be nil, got %d", *room.MaxNumberOfPlayer)
+				}
+			} else {
+				if room.MaxNumberOfPlayer == nil {
+					t.Errorf("expected max players to be %d, got nil", *tc.expectedMaxPlayer)
+				} else if *room.MaxNumberOfPlayer != *tc.expectedMaxPlayer {
+					t.Errorf("expected max players to be %d, got %d", *tc.expectedMaxPlayer, *room.MaxNumberOfPlayer)
+				}
+			}
+
+			_, err := repo.GetByID(context.Background(), room.RoomID)
+			if err != nil {
+				t.Fatalf("failed to get room from repo: %v", err)
+			}
+		})
+	}
+}
+
+func TestRegisterManualGame(t *testing.T) {
+	t.Parallel()
+
+	type testCase struct {
+		name           string
+		payload        interface{}
+		expectedStatus int
+		checkFn        func(t *testing.T, repo *InMemoryRepository, body *bytes.Buffer)
+	}
+
+	intPtr := func(i int) *int { return &i }
+
+	tests := []testCase{
+		{
+			name: "successful creation with max players",
+			payload: RegisterManualGameRequest{
+				RoomID:  "manual-room-1",
+				Address: "localhost",
+				Port:    9876,
+				MaxNumberOfPlayer: intPtr(8),
+			},
+			expectedStatus: http.StatusCreated,
+			checkFn: func(t *testing.T, repo *InMemoryRepository, body *bytes.Buffer) {
+				var room Room
+				if err := json.Unmarshal(body.Bytes(), &room); err != nil {
+					t.Fatalf("failed to unmarshal response body: %v", err)
+				}
+				if room.RoomID != "manual-room-1" {
+					t.Errorf("expected roomID %q, got %q", "manual-room-1", room.RoomID)
+				}
+				if room.State != StateIniting {
+					t.Errorf("expected state %q, got %q", StateIniting, room.State)
+				}
+				if room.MaxNumberOfPlayer == nil || *room.MaxNumberOfPlayer != 8 {
+					t.Errorf("expected maxNumberOfPlayer to be 8, got %v", room.MaxNumberOfPlayer)
+				}
+
+				created, err := repo.GetByID(context.Background(), "manual-room-1")
+				if err != nil {
+					t.Fatalf("failed to get room from repo: %v", err)
+				}
+				if created == nil {
+					t.Fatal("room was not created in repository")
+				}
+				if created.RoomID != "manual-room-1" {
+					t.Errorf("repo: expected roomID %q, got %q", "manual-room-1", created.RoomID)
+				}
+				if created.MaxNumberOfPlayer == nil || *created.MaxNumberOfPlayer != 8 {
+					t.Errorf("repo: expected maxNumberOfPlayer to be 8, got %v", created.MaxNumberOfPlayer)
+				}
+			},
+		},
+		{
+			name: "successful creation without max players",
+			payload: RegisterManualGameRequest{
+				RoomID:  "manual-room-2",
+				Address: "localhost",
+				Port:    9877,
+			},
+			expectedStatus: http.StatusCreated,
+			checkFn: func(t *testing.T, repo *InMemoryRepository, body *bytes.Buffer) {
+				var room Room
+				if err := json.Unmarshal(body.Bytes(), &room); err != nil {
+					t.Fatalf("failed to unmarshal response body: %v", err)
+				}
+
+				if room.MaxNumberOfPlayer == nil || *room.MaxNumberOfPlayer != 32 {
+					t.Errorf("expected maxNumberOfPlayer to be 32, got %v", room.MaxNumberOfPlayer)
+				}
+
+				created, err := repo.GetByID(context.Background(), "manual-room-2")
+				if err != nil {
+					t.Fatalf("failed to get room from repo: %v", err)
+				}
+				if created.MaxNumberOfPlayer == nil || *created.MaxNumberOfPlayer != 32 {
+					t.Errorf("repo: expected maxNumberOfPlayer to be 32, got %v", created.MaxNumberOfPlayer)
+				}
+			},
+		},
+		{
+			name:           "missing roomId",
+			payload:        map[string]interface{}{"address": "localhost", "port": 9876},
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name:           "missing address",
+			payload:        map[string]interface{}{"roomId": "manual-room-1", "port": 9876},
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name:           "missing port",
+			payload:        map[string]interface{}{"roomId": "manual-room-1", "address": "localhost"},
+			expectedStatus: http.StatusBadRequest,
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			repo := NewInMemoryRepository([]Room{})
+			svc := NewService(repo, "test-game-image:latest")
+			h := NewHandler(svc, zap.NewNop())
+
+			r := chi.NewRouter()
+			r.Post("/rooms", h.RegisterManualGame)
+
+			body, err := json.Marshal(tc.payload)
+			if err != nil {
+				t.Fatalf("failed to marshal payload: %v", err)
+			}
+
+			req := httptest.NewRequest(http.MethodPost, "/rooms", bytes.NewBuffer(body))
+			rec := httptest.NewRecorder()
+
+			r.ServeHTTP(rec, req)
+
+			if rec.Code != tc.expectedStatus {
+				t.Fatalf("expected status %d, got %d. Body: %s", tc.expectedStatus, rec.Code, rec.Body.String())
+			}
+
+			if tc.checkFn != nil {
+				tc.checkFn(t, repo, rec.Body)
+			}
+		})
 	}
 }
