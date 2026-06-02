@@ -1,6 +1,7 @@
 package rooms
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -308,18 +309,21 @@ func TestSetGameStatus_AllStates(t *testing.T) {
 		name           string
 		roomID         string
 		statusParam    string
-		winnerParam    string
+		winnerParam    *string
 		initialRoom    *Room
 		expectedStatus int
 		expectedState  State
 		checkFn        func(t *testing.T, updated *Room)
 	}
 
+	strPtr := func(s string) *string { return &s }
+
 	tests := []testCase{
 		{
 			name:           "Create new room when status is ready and room doesn't exist",
 			roomID:         "room-new-ready",
 			statusParam:    "ready",
+			winnerParam:    nil,
 			initialRoom:    nil,
 			expectedStatus: http.StatusOK,
 			expectedState:  StateReady,
@@ -328,6 +332,7 @@ func TestSetGameStatus_AllStates(t *testing.T) {
 			name:           "Do nothing and return OK if room doesn't exist and status is not ready",
 			roomID:         "room-nonexistent",
 			statusParam:    "running",
+			winnerParam:    nil,
 			initialRoom:    nil,
 			expectedStatus: http.StatusOK,
 			expectedState:  "",
@@ -336,6 +341,7 @@ func TestSetGameStatus_AllStates(t *testing.T) {
 			name:        "Transition to initing updates StartedAt time",
 			roomID:      "room-initing",
 			statusParam: "init",
+			winnerParam: nil,
 			initialRoom: &Room{
 				RoomID: "room-initing",
 				State:  StateReady,
@@ -352,6 +358,7 @@ func TestSetGameStatus_AllStates(t *testing.T) {
 			name:        "Transition to running",
 			roomID:      "room-running",
 			statusParam: "running",
+			winnerParam: nil,
 			initialRoom: &Room{
 				RoomID: "room-running",
 				State:  "init",
@@ -363,7 +370,7 @@ func TestSetGameStatus_AllStates(t *testing.T) {
 			name:        "Transition to ended sets winner and EndedAt time",
 			roomID:      "room-ended",
 			statusParam: "ended",
-			winnerParam: "player-1",
+			winnerParam: strPtr("player-1"),
 			initialRoom: &Room{
 				RoomID: "room-ended",
 				State:  StateRunning,
@@ -383,6 +390,7 @@ func TestSetGameStatus_AllStates(t *testing.T) {
 			name:        "Transition to crashed sets EndedAt time",
 			roomID:      "room-crashed",
 			statusParam: "crashed",
+			winnerParam: nil,
 			initialRoom: &Room{
 				RoomID: "room-crashed",
 				State:  StateRunning,
@@ -411,15 +419,22 @@ func TestSetGameStatus_AllStates(t *testing.T) {
 			h := NewHandler(svc, zap.NewNop())
 
 			r := chi.NewRouter()
-			r.Post("/rooms/{roomId}/status/{status}", h.SetStatus)
-			r.Post("/rooms/{roomId}/status/{status}/{winnerId}", h.SetStatus)
+			r.Post("/rooms/{roomId}/status", h.SetStatus)
 
-			url := fmt.Sprintf("/rooms/%s/status/%s", tc.roomID, tc.statusParam)
-			if tc.winnerParam != "" {
-				url = fmt.Sprintf("%s/%s", url, tc.winnerParam)
+			bodyPayload := map[string]interface{}{
+				"status": tc.statusParam,
+				"winner": tc.winnerParam,
 			}
 
-			req := httptest.NewRequest(http.MethodPost, url, nil)
+			jsonBody, err := json.Marshal(bodyPayload)
+			if err != nil {
+				t.Fatalf("failed to marshal request body payload: %v", err)
+			}
+
+			url := fmt.Sprintf("/rooms/%s/status", tc.roomID)
+
+			req := httptest.NewRequest(http.MethodPost, url, bytes.NewBuffer(jsonBody))
+			req.Header.Set("Content-Type", "application/json")
 			rec := httptest.NewRecorder()
 
 			r.ServeHTTP(rec, req)

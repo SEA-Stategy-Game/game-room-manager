@@ -170,19 +170,40 @@ func (h *Handler) CreateGame(w http.ResponseWriter, r *http.Request) {
 // 	_, _ = w.Write([]byte("room set to crashed"))
 // }
 
+type SetStatusRequest struct {
+	Status string  `json:"status"`
+	Winner *string `json:"winner"`
+}
+
 func (h *Handler) SetStatus(w http.ResponseWriter, r *http.Request) {
 	roomID := chi.URLParam(r, "roomId")
-	status := chi.URLParam(r, "status")
-	winner := chi.URLParam(r, "winnerId")
 
-	if err := h.svc.SetGameStatus(r.Context(), roomID, status, winner); err != nil {
+	var req SetStatusRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.log.Error("failed to decode request body", zap.Error(err))
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+	defer r.Body.Close()
+
+	if req.Status == "" {
+		http.Error(w, "status is required", http.StatusBadRequest)
+		return
+	}
+
+	var winner string
+	if req.Winner != nil {
+		winner = *req.Winner
+	}
+
+	if err := h.svc.SetGameStatus(r.Context(), roomID, req.Status, winner); err != nil {
 		h.log.Error("failed to set state", zap.Error(err))
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
 
 	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write([]byte("room s"))
+	_, _ = w.Write([]byte("room status updated"))
 }
 
 // func (h *Handler) SetEnded(w http.ResponseWriter, r *http.Request) {
