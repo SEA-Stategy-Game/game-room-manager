@@ -63,3 +63,11 @@ func (s *Service) RegisterGameRoom(ctx context.Context) (Room, error) {
 
 	return room, nil
 }
+
+func (s *Service) EndActiveGameRoom(ctx context.Context, roomID string) (Room, error) {
+	return Room{}, nil
+}
+
+func (s *Service) GetGameRoom(ctx context.Context, roomID string) (*Room, error) {
+	return s.repo.GetByID(ctx, roomID)
+}

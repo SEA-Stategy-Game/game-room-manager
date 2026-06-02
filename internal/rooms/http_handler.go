@@ -63,3 +63,43 @@ func (h *Handler) CreateGame(w http.ResponseWriter, r *http.Request) {
 		h.log.Error("failed to encode room response", zap.Error(err))
 	}
 }
+
+func (h *Handler) EndGame(w http.ResponseWriter, r *http.Request) {
+
+	roomID := chi.URLParam(r, "roomId")
+
+	room, err := h.svc.EndActiveGameRoom(r.Context(), roomID)
+
+	if err != nil {
+		h.log.Error("failed to create game", zap.Error(err))
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+
+	if err := json.NewEncoder(w).Encode(room); err != nil {
+		h.log.Error("failed to encode room response", zap.Error(err))
+	}
+}
+
+func (h *Handler) GetGame(w http.ResponseWriter, r *http.Request) {
+
+	roomID := chi.URLParam(r, "roomId")
+
+	room, err := h.svc.GetGameRoom(r.Context(), roomID)
+
+	if err != nil {
+		h.log.Error("failed to get game", zap.Error(err))
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	if err := json.NewEncoder(w).Encode(room); err != nil {
+		h.log.Error("failed to encode room response", zap.Error(err))
+	}
+}
