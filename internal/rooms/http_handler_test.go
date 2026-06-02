@@ -2,6 +2,7 @@ package rooms
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -190,168 +191,267 @@ func TestFindPlayerStatus(t *testing.T) {
 	}
 }
 
-func TestReady(t *testing.T) {
+// func TestReady(t *testing.T) {
+// 	t.Parallel()
+
+// 	repo := NewInMemoryRepository([]Room{
+// 		{
+// 			RoomID:            "room-123",
+// 			ConnectionDetails: "ws://example/rooms/room-123",
+// 			State:             StateActive,
+// 			Participants:      1,
+// 			Players:           []string{"player-1"},
+// 		},
+// 		{
+// 			RoomID:            "room-345",
+// 			ConnectionDetails: "ws://example/rooms/room-345",
+// 			State:             StateActive,
+// 			Participants:      1,
+// 			Players:           []string{"player-2"},
+// 		},
+// 		{
+// 			RoomID:            "room-133",
+// 			ConnectionDetails: "ws://example/rooms/room-133",
+// 			State:             StateActive,
+// 			Participants:      1,
+// 			Players:           []string{"player-2", "player-3"},
+// 		},
+// 		{
+// 			RoomID:            "room-163",
+// 			ConnectionDetails: "ws://example/rooms/room-163",
+// 			State:             StateInactive,
+// 			Participants:      1,
+// 			Players:           []string{"player-1", "player-3"},
+// 		},
+// 	})
+// 	svc := NewService(repo, "test-game-image:latest")
+// 	h := NewHandler(svc, zap.NewNop())
+
+// 	r := chi.NewRouter()
+// 	r.Post("/rooms/{roomId}/ready", h.SetReady)
+
+// 	req := httptest.NewRequest(http.MethodPost, "/rooms/room-163/ready", nil)
+// 	rec := httptest.NewRecorder()
+
+// 	r.ServeHTTP(rec, req)
+
+// 	if rec.Code != http.StatusOK {
+// 		t.Fatalf("expected status %d, got %d", http.StatusOK, rec.Code)
+// 	}
+
+// 	updated, _ := repo.GetByID(req.Context(), "room-163")
+
+// 	if updated.State != StateReady {
+// 		t.Fatalf("expected state %q, got %q", StateReady, updated.State)
+// 	}
+// }
+
+// func TestCrash(t *testing.T) {
+// 	t.Parallel()
+
+// 	repo := NewInMemoryRepository([]Room{
+// 		{
+// 			RoomID:            "room-123",
+// 			ConnectionDetails: "ws://example/rooms/room-123",
+// 			State:             StateActive,
+// 			Participants:      1,
+// 			Players:           []string{"player-1"},
+// 		},
+// 		{
+// 			RoomID:            "room-345",
+// 			ConnectionDetails: "ws://example/rooms/room-345",
+// 			State:             StateActive,
+// 			Participants:      1,
+// 			Players:           []string{"player-2"},
+// 		},
+// 		{
+// 			RoomID:            "room-133",
+// 			ConnectionDetails: "ws://example/rooms/room-133",
+// 			State:             StateActive,
+// 			Participants:      1,
+// 			Players:           []string{"player-2", "player-3"},
+// 		},
+// 		{
+// 			RoomID:            "room-163",
+// 			ConnectionDetails: "ws://example/rooms/room-163",
+// 			State:             StateInactive,
+// 			Participants:      1,
+// 			Players:           []string{"player-1", "player-3"},
+// 		},
+// 	})
+// 	svc := NewService(repo, "test-game-image:latest")
+// 	h := NewHandler(svc, zap.NewNop())
+
+// 	r := chi.NewRouter()
+// 	r.Post("/rooms/{roomId}/crash", h.SetCrashed)
+
+// 	req := httptest.NewRequest(http.MethodPost, "/rooms/room-163/crash", nil)
+// 	rec := httptest.NewRecorder()
+
+// 	r.ServeHTTP(rec, req)
+
+// 	if rec.Code != http.StatusOK {
+// 		t.Fatalf("expected status %d, got %d", http.StatusOK, rec.Code)
+// 	}
+
+// 	updated, _ := repo.GetByID(req.Context(), "room-163")
+
+// 	if updated.State != StateCrashed {
+// 		t.Fatalf("expected state %q, got %q", StateCrashed, updated.State)
+// 	}
+// }
+
+func TestSetGameStatus_AllStates(t *testing.T) {
 	t.Parallel()
 
-	repo := NewInMemoryRepository([]Room{
-		{
-			RoomID:            "room-123",
-			ConnectionDetails: "ws://example/rooms/room-123",
-			State:             StateActive,
-			Participants:      1,
-			Players:           []string{"player-1"},
-		},
-		{
-			RoomID:            "room-345",
-			ConnectionDetails: "ws://example/rooms/room-345",
-			State:             StateActive,
-			Participants:      1,
-			Players:           []string{"player-2"},
-		},
-		{
-			RoomID:            "room-133",
-			ConnectionDetails: "ws://example/rooms/room-133",
-			State:             StateActive,
-			Participants:      1,
-			Players:           []string{"player-2", "player-3"},
-		},
-		{
-			RoomID:            "room-163",
-			ConnectionDetails: "ws://example/rooms/room-163",
-			State:             StateInactive,
-			Participants:      1,
-			Players:           []string{"player-1", "player-3"},
-		},
-	})
-	svc := NewService(repo, "test-game-image:latest")
-	h := NewHandler(svc, zap.NewNop())
-
-	r := chi.NewRouter()
-	r.Post("/rooms/{roomId}/ready", h.SetReady)
-
-	req := httptest.NewRequest(http.MethodPost, "/rooms/room-163/ready", nil)
-	rec := httptest.NewRecorder()
-
-	r.ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected status %d, got %d", http.StatusOK, rec.Code)
+	type testCase struct {
+		name           string
+		roomID         string
+		statusParam    string
+		winnerParam    string
+		initialRoom    *Room
+		expectedStatus int
+		expectedState  State
+		checkFn        func(t *testing.T, updated *Room)
 	}
 
-	updated, _ := repo.GetByID(req.Context(), "room-163")
-
-	if updated.State != StateReady {
-		t.Fatalf("expected state %q, got %q", StateReady, updated.State)
-	}
-}
-
-func TestCrash(t *testing.T) {
-	t.Parallel()
-
-	repo := NewInMemoryRepository([]Room{
+	tests := []testCase{
 		{
-			RoomID:            "room-123",
-			ConnectionDetails: "ws://example/rooms/room-123",
-			State:             StateActive,
-			Participants:      1,
-			Players:           []string{"player-1"},
+			name:           "Create new room when status is ready and room doesn't exist",
+			roomID:         "room-new-ready",
+			statusParam:    "ready",
+			initialRoom:    nil,
+			expectedStatus: http.StatusOK,
+			expectedState:  StateReady,
 		},
 		{
-			RoomID:            "room-345",
-			ConnectionDetails: "ws://example/rooms/room-345",
-			State:             StateActive,
-			Participants:      1,
-			Players:           []string{"player-2"},
+			name:           "Do nothing and return OK if room doesn't exist and status is not ready",
+			roomID:         "room-nonexistent",
+			statusParam:    "running",
+			initialRoom:    nil,
+			expectedStatus: http.StatusOK,
+			expectedState:  "",
 		},
 		{
-			RoomID:            "room-133",
-			ConnectionDetails: "ws://example/rooms/room-133",
-			State:             StateActive,
-			Participants:      1,
-			Players:           []string{"player-2", "player-3"},
+			name:        "Transition to initing updates StartedAt time",
+			roomID:      "room-initing",
+			statusParam: "init",
+			initialRoom: &Room{
+				RoomID: "room-initing",
+				State:  StateReady,
+			},
+			expectedStatus: http.StatusOK,
+			expectedState:  "init",
+			checkFn: func(t *testing.T, updated *Room) {
+				if updated.StartedAt.IsZero() {
+					t.Error("expected StartedAt to be populated, got zero time")
+				}
+			},
 		},
 		{
-			RoomID:            "room-163",
-			ConnectionDetails: "ws://example/rooms/room-163",
-			State:             StateInactive,
-			Participants:      1,
-			Players:           []string{"player-1", "player-3"},
-		},
-	})
-	svc := NewService(repo, "test-game-image:latest")
-	h := NewHandler(svc, zap.NewNop())
-
-	r := chi.NewRouter()
-	r.Post("/rooms/{roomId}/crash", h.SetCrashed)
-
-	req := httptest.NewRequest(http.MethodPost, "/rooms/room-163/crash", nil)
-	rec := httptest.NewRecorder()
-
-	r.ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected status %d, got %d", http.StatusOK, rec.Code)
-	}
-
-	updated, _ := repo.GetByID(req.Context(), "room-163")
-
-	if updated.State != StateCrashed {
-		t.Fatalf("expected state %q, got %q", StateCrashed, updated.State)
-	}
-}
-
-func TestEnded(t *testing.T) {
-	t.Parallel()
-
-	repo := NewInMemoryRepository([]Room{
-		{
-			RoomID:            "room-123",
-			ConnectionDetails: "ws://example/rooms/room-123",
-			State:             StateActive,
-			Participants:      1,
-			Players:           []string{"player-1"},
+			name:        "Transition to running",
+			roomID:      "room-running",
+			statusParam: "running",
+			initialRoom: &Room{
+				RoomID: "room-running",
+				State:  "init",
+			},
+			expectedStatus: http.StatusOK,
+			expectedState:  StateRunning,
 		},
 		{
-			RoomID:            "room-345",
-			ConnectionDetails: "ws://example/rooms/room-345",
-			State:             StateActive,
-			Participants:      1,
-			Players:           []string{"player-2"},
+			name:        "Transition to ended sets winner and EndedAt time",
+			roomID:      "room-ended",
+			statusParam: "ended",
+			winnerParam: "player-1",
+			initialRoom: &Room{
+				RoomID: "room-ended",
+				State:  StateRunning,
+			},
+			expectedStatus: http.StatusOK,
+			expectedState:  StateEnded,
+			checkFn: func(t *testing.T, updated *Room) {
+				if updated.Winner != "player-1" {
+					t.Errorf("expected winner 'player-1', got %q", updated.Winner)
+				}
+				if updated.EndedAt.IsZero() {
+					t.Error("expected EndedAt to be populated, got zero time")
+				}
+			},
 		},
 		{
-			RoomID:            "room-133",
-			ConnectionDetails: "ws://example/rooms/room-133",
-			State:             StateActive,
-			Participants:      1,
-			Players:           []string{"player-2", "player-3"},
+			name:        "Transition to crashed sets EndedAt time",
+			roomID:      "room-crashed",
+			statusParam: "crashed",
+			initialRoom: &Room{
+				RoomID: "room-crashed",
+				State:  StateRunning,
+			},
+			expectedStatus: http.StatusOK,
+			expectedState:  StateCrashed,
+			checkFn: func(t *testing.T, updated *Room) {
+				if updated.EndedAt.IsZero() {
+					t.Error("expected EndedAt to be populated, got zero time")
+				}
+			},
 		},
-		{
-			RoomID:            "room-163",
-			ConnectionDetails: "ws://example/rooms/room-163",
-			State:             StateInactive,
-			Participants:      1,
-			Players:           []string{"player-1", "player-3"},
-		},
-	})
-	svc := NewService(repo, "test-game-image:latest")
-	h := NewHandler(svc, zap.NewNop())
-
-	r := chi.NewRouter()
-	r.Post("/rooms/{roomId}/end/{winner}", h.SetEnded)
-
-	req := httptest.NewRequest(http.MethodPost, "/rooms/room-163/end/player-1", nil)
-	rec := httptest.NewRecorder()
-
-	r.ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected status %d, got %d", http.StatusOK, rec.Code)
 	}
 
-	updated, _ := repo.GetByID(req.Context(), "room-163")
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 
-	if updated.State != StateEnded {
-		t.Fatalf("expected state %q, got %q", StateEnded, updated.State)
+			var initialRooms []Room
+			if tc.initialRoom != nil {
+				initialRooms = append(initialRooms, *tc.initialRoom)
+			}
+			repo := NewInMemoryRepository(initialRooms)
+			svc := NewService(repo, "test-game-image:latest")
+			h := NewHandler(svc, zap.NewNop())
+
+			r := chi.NewRouter()
+			r.Post("/rooms/{roomId}/status/{status}", h.SetStatus)
+			r.Post("/rooms/{roomId}/status/{status}/{winnerId}", h.SetStatus)
+
+			url := fmt.Sprintf("/rooms/%s/status/%s", tc.roomID, tc.statusParam)
+			if tc.winnerParam != "" {
+				url = fmt.Sprintf("%s/%s", url, tc.winnerParam)
+			}
+
+			req := httptest.NewRequest(http.MethodPost, url, nil)
+			rec := httptest.NewRecorder()
+
+			r.ServeHTTP(rec, req)
+
+			if rec.Code != tc.expectedStatus {
+				t.Fatalf("expected status %d, got %d", tc.expectedStatus, rec.Code)
+			}
+
+			if tc.expectedState == "" && tc.initialRoom == nil {
+				return
+			}
+
+			updated, err := repo.GetByID(req.Context(), tc.roomID)
+			if err != nil {
+				t.Fatalf("failed to fetch updated room from repo: %v", err)
+			}
+
+			if updated == nil {
+				if tc.expectedState != "" {
+					t.Fatalf("expected room to exist with state %q, but got nil", tc.expectedState)
+				}
+				return
+			}
+
+			if updated.State != tc.expectedState {
+				t.Errorf("expected state %q, got %q", tc.expectedState, updated.State)
+			}
+
+			if tc.checkFn != nil {
+				tc.checkFn(t, updated)
+			}
+		})
 	}
 }
 

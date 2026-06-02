@@ -46,8 +46,7 @@ func (r *InMemoryRepository) GetByID(ctx context.Context, roomID string) (*Room,
 	_ = ctx
 	for i := range r.rooms {
 		if r.rooms[i].RoomID == roomID {
-			room := r.rooms[i]
-			return &room, nil
+			return &r.rooms[i], nil
 		}
 	}
 	return nil, nil
@@ -61,6 +60,7 @@ func (r *InMemoryRepository) Update(ctx context.Context, room *Room) error {
 			return nil
 		}
 	}
+	r.rooms = append(r.rooms, *room)
 	return nil
 }
 
