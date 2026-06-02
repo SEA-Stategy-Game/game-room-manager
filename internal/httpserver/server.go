@@ -45,7 +45,7 @@ func New(cfg *config.Config, logger *zap.Logger) *Server {
 	r := chi.NewRouter()
 	r.Use(zapRequestLogger(logger))
 
-	roomRepo, _ := rooms.NewJSONRepository("rooms.json")
+	roomRepo, _ := rooms.NewSQLiteRepository("manager.db")
 	roomSvc := rooms.NewService(roomRepo, cfg.GameImage)
 	roomHandler := rooms.NewHandler(roomSvc, logger)
 
