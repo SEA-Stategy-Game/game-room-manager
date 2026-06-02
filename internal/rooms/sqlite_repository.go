@@ -97,6 +97,20 @@ func (r *SQLiteRepository) List(ctx context.Context) ([]Room, error) {
 		result = append(result, room)
 	}
 
+	// TODO: Remove this, it's a hardcoded room for testing now 
+	if len(result) == 0 {
+		result = append(result, Room{
+			
+			RoomID:            "testgame",
+			ConnectionDetails: "ws://localhost:8080/rooms/room-1",
+			State:             StateActive,
+			Participants:      3,
+			Address:           "127.0.0.1",
+			Port:              12345,
+			Players:           []string{},
+		})
+	}
+
 	return result, rows.Err()
 }
 
