@@ -144,6 +144,42 @@ func (h *Handler) CreateGame(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+type RegisterManualGameRequest struct {
+	RoomID  string `json:"roomId"`
+	Address string `json:"address"`
+	Port    int    `json:"port"`
+}
+
+// RegisterManualGame is used for the local test gaming room that is manually created.
+func (h *Handler) RegisterManualGame(w http.ResponseWriter, r *http.Request) {
+	var req RegisterManualGameRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		h.log.Error("failed to decode request body", zap.Error(err))
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+	defer r.Body.Close()
+
+	if req.RoomID == "" || req.Address == "" || req.Port == 0 {
+		http.Error(w, "roomId, address and port are required", http.StatusBadRequest)
+		return
+	}
+
+	room, err := h.svc.RegisterManualGame(r.Context(), req.RoomID, req.Address, req.Port)
+	if err != nil {
+		h.log.Error("failed to create manual game", zap.Error(err))
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+
+	if err := json.NewEncoder(w).Encode(room); err != nil {
+		h.log.Error("failed to encode room response", zap.Error(err))
+	}
+}
+
 type SetStatusRequest struct {
 	Status string  `json:"status"`
 	Winner *string `json:"winner"`

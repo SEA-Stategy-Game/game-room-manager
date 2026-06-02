@@ -130,3 +130,20 @@ func (s *Service) RegisterGameRoom(ctx context.Context) (*Room, error) {
 
 	return room, s.repo.Create(ctx, room)
 }
+
+// RegisterManualGame creates a room record for a game room that was started manually.
+func (s *Service) RegisterManualGame(ctx context.Context, roomID string, address string, port int) (*Room, error) {
+	room := &Room{
+		RoomID:    roomID,
+		State:     StateIniting,
+		Address:   address,
+		Port:      port,
+		Players:   []string{},
+		Winner:    "",
+		StartedAt: time.Time{},
+		EndedAt:   time.Time{},
+		ProcessID: 0,
+	}
+
+	return room, s.repo.Create(ctx, room)
+}

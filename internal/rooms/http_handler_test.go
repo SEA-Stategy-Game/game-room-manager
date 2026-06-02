@@ -3,6 +3,7 @@ package rooms
 import (
 	"bytes"
 	"encoding/json"
+	"context"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -385,5 +386,98 @@ func TestFindRoom(t *testing.T) {
 	}
 	if room.RoomID != "room-133" {
 		t.Fatalf("expected name %s, got %s", "room-133", room.RoomID)
+	}
+}
+
+func TestRegisterManualGame(t *testing.T) {
+	t.Parallel()
+
+	type testCase struct {
+		name           string
+		payload        interface{}
+		expectedStatus int
+		checkFn        func(t *testing.T, repo *InMemoryRepository, body *bytes.Buffer)
+	}
+
+	tests := []testCase{
+		{
+			name: "successful creation",
+			payload: RegisterManualGameRequest{
+				RoomID:  "manual-room-1",
+				Address: "localhost",
+				Port:    9876,
+			},
+			expectedStatus: http.StatusCreated,
+			checkFn: func(t *testing.T, repo *InMemoryRepository, body *bytes.Buffer) {
+				var room Room
+				if err := json.Unmarshal(body.Bytes(), &room); err != nil {
+					t.Fatalf("failed to unmarshal response body: %v", err)
+				}
+				if room.RoomID != "manual-room-1" {
+					t.Errorf("expected roomID %q, got %q", "manual-room-1", room.RoomID)
+				}
+				if room.State != StateIniting {
+					t.Errorf("expected state %q, got %q", StateIniting, room.State)
+				}
+
+				created, err := repo.GetByID(context.Background(), "manual-room-1")
+				if err != nil {
+					t.Fatalf("failed to get room from repo: %v", err)
+				}
+				if created == nil {
+					t.Fatal("room was not created in repository")
+				}
+				if created.RoomID != "manual-room-1" {
+					t.Errorf("repo: expected roomID %q, got %q", "manual-room-1", created.RoomID)
+				}
+			},
+		},
+		{
+			name:           "missing roomId",
+			payload:        map[string]interface{}{"address": "localhost", "port": 9876},
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name:           "missing address",
+			payload:        map[string]interface{}{"roomId": "manual-room-1", "port": 9876},
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name:           "missing port",
+			payload:        map[string]interface{}{"roomId": "manual-room-1", "address": "localhost"},
+			expectedStatus: http.StatusBadRequest,
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			repo := NewInMemoryRepository([]Room{})
+			svc := NewService(repo, "test-game-image:latest")
+			h := NewHandler(svc, zap.NewNop())
+
+			r := chi.NewRouter()
+			r.Post("/rooms", h.RegisterManualGame)
+
+			body, err := json.Marshal(tc.payload)
+			if err != nil {
+				t.Fatalf("failed to marshal payload: %v", err)
+			}
+
+			req := httptest.NewRequest(http.MethodPost, "/rooms", bytes.NewBuffer(body))
+			rec := httptest.NewRecorder()
+
+			r.ServeHTTP(rec, req)
+
+			if rec.Code != tc.expectedStatus {
+				t.Fatalf("expected status %d, got %d. Body: %s", tc.expectedStatus, rec.Code, rec.Body.String())
+			}
+
+			if tc.checkFn != nil {
+				tc.checkFn(t, repo, rec.Body)
+			}
+		})
 	}
 }

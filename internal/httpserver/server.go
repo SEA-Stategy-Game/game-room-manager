@@ -57,6 +57,7 @@ func New(cfg *config.Config, logger *zap.Logger) (*Server, error) {
 	}
 	roomSvc := rooms.NewService(roomRepo, cfg.GameImage)
 	roomHandler := rooms.NewHandler(roomSvc, logger)
+	r.Post("/rooms", roomHandler.RegisterManualGame)
 	r.Get("/rooms", roomHandler.GetRooms)
 	r.Get("/room/{roomId}", roomHandler.GetRoom)
 	r.Post("/rooms/{roomId}/players/{playerId}/join", roomHandler.JoinRoom)
