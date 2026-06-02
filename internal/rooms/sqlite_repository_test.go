@@ -19,9 +19,7 @@ func newTestRepo(t *testing.T) *SQLiteRepository {
 func sampleRoom() *Room {
 	return &Room{
 		RoomID:            "room-1",
-		ConnectionDetails: "127.0.0.1:9000",
-		State:             StateActive,
-		Participants:      2,
+		State:             StateIniting,
 		Address:           "localhost",
 		Port:              9000,
 		Players:           []string{"alice", "bob"},
@@ -45,10 +43,6 @@ func TestSQLiteRepository_CreateAndGetByID(t *testing.T) {
 
 	if got.RoomID != room.RoomID {
 		t.Fatalf("expected %s, got %s", room.RoomID, got.RoomID)
-	}
-
-	if got.ConnectionDetails != room.ConnectionDetails {
-		t.Fatalf("unexpected ConnectionDetails")
 	}
 
 	if len(got.Players) != 2 {
@@ -90,7 +84,6 @@ func TestSQLiteRepository_Update(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	room.Participants = 99
 	room.Players = append(room.Players, "charlie")
 
 	if err := repo.Update(ctx, room); err != nil {
@@ -100,10 +93,6 @@ func TestSQLiteRepository_Update(t *testing.T) {
 	got, err := repo.GetByID(ctx, room.RoomID)
 	if err != nil {
 		t.Fatalf("GetByID failed: %v", err)
-	}
-
-	if got.Participants != 99 {
-		t.Fatalf("expected 99 participants, got %d", got.Participants)
 	}
 
 	if len(got.Players) != 3 {

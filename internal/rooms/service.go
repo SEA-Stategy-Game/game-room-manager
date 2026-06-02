@@ -5,6 +5,8 @@ import (
 	"flag"
 	"fmt"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 // Service is the application/service layer (use-cases) for rooms.
@@ -45,7 +47,6 @@ func (s *Service) JoinGameRoom(ctx context.Context, roomID string, playerID stri
 	}
 
 	room.Players = append(room.Players, playerID)
-	room.Participants++
 
 	return s.repo.Update(ctx, room)
 }
@@ -58,23 +59,26 @@ func (s *Service) SetGameStatus(ctx context.Context, roomID string, status strin
 
 	if room == nil {
 		if status == "ready" {
-			newRoom, err := s.RegisterGameRoom(ctx)
-			if err != nil {
-				return fmt.Errorf("failed to register game room: %w", err)
+			var pid int
+			var pidErr error
+			if flag.Lookup("test.v") != nil {
+				pid = 12345
+			} else {
+				pid, pidErr = SpawnGameRoom(1234)
+				if pidErr != nil {
+					return pidErr
+				}
 			}
 
-			room = &Room{
+			newRoom := &Room{
 				RoomID:            roomID,
-				ConnectionDetails: newRoom.ConnectionDetails,
-				State:             newRoom.State,
-				Participants:      newRoom.Participants,
-				Address:           newRoom.Address,
-				Port:              newRoom.Port,
-				Players:           newRoom.Players,
-				Winner:            newRoom.Winner,
-				StartedAt:         newRoom.StartedAt,
-				EndedAt:           newRoom.EndedAt,
+				State:             StateReady,
+				Address:           "",
+				Port:              1234,
+				Players:           []string{},
+				ProcessID:         pid,
 			}
+			return s.repo.Create(ctx, newRoom)
 		} else {
 			return nil
 		}
@@ -98,7 +102,7 @@ func (s *Service) SetGameStatus(ctx context.Context, roomID string, status strin
 	return s.repo.Update(ctx, room)
 }
 
-func (s *Service) RegisterGameRoom(ctx context.Context) (Room, error) {
+func (s *Service) RegisterGameRoom(ctx context.Context) (*Room, error) {
 
 	var pid int
 	var err error
@@ -108,26 +112,21 @@ func (s *Service) RegisterGameRoom(ctx context.Context) (Room, error) {
 	} else {
 		pid, err = SpawnGameRoom(1234)
 		if err != nil {
-			return Room{}, err
+			return nil, err
 		}
 	}
 
-	if err != nil {
-		return Room{}, err
-	}
-
-	room := Room{
-		RoomID:            fmt.Sprint(pid),
-		ConnectionDetails: "",
-		State:             StateActive,
-		Participants:      0,
+	room := &Room{
+		RoomID:            uuid.New().String(),
+		State:             StateIniting,
 		Address:           "",
 		Port:              1234,
 		Players:           []string{},
 		Winner:            "",
 		StartedAt:         time.Time{},
 		EndedAt:           time.Time{},
+		ProcessID:         pid,
 	}
 
-	return room, nil
+	return room, s.repo.Create(ctx, room)
 }

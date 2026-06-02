@@ -18,9 +18,7 @@ func TestGetRooms_ReturnsJSONList(t *testing.T) {
 	repo := NewInMemoryRepository([]Room{
 		{
 			RoomID:            "abc",
-			ConnectionDetails: "ws://example/rooms/abc",
-			State:             StateActive,
-			Participants:      2,
+			State:             StateIniting,
 		},
 	})
 	svc := NewService(repo, "test-game-image:latest")
@@ -52,14 +50,8 @@ func TestGetRooms_ReturnsJSONList(t *testing.T) {
 	if rooms[0].RoomID != "abc" {
 		t.Fatalf("expected roomId %q, got %q", "abc", rooms[0].RoomID)
 	}
-	if rooms[0].ConnectionDetails != "ws://example/rooms/abc" {
-		t.Fatalf("expected connectionDetails %q, got %q", "ws://example/rooms/abc", rooms[0].ConnectionDetails)
-	}
-	if rooms[0].State != StateActive {
-		t.Fatalf("expected state %q, got %q", StateActive, rooms[0].State)
-	}
-	if rooms[0].Participants != 2 {
-		t.Fatalf("expected participants %d, got %d", 2, rooms[0].Participants)
+	if rooms[0].State != StateIniting {
+		t.Fatalf("expected state %q, got %q", StateIniting, rooms[0].State)
 	}
 }
 
@@ -69,9 +61,7 @@ func TestJoinRoom_AddsPlayerToRoom(t *testing.T) {
 	repo := NewInMemoryRepository([]Room{
 		{
 			RoomID:            "room-123",
-			ConnectionDetails: "ws://example/rooms/room-123",
-			State:             StateActive,
-			Participants:      1,
+			State:             StateIniting,
 			Players:           []string{"player-1"},
 		},
 	})
@@ -97,9 +87,6 @@ func TestJoinRoom_AddsPlayerToRoom(t *testing.T) {
 	if updated.Players[1] != "player-2" {
 		t.Fatalf("expected player-2, got %q", updated.Players[1])
 	}
-	if updated.Participants != 2 {
-		t.Fatalf("expected participants 2, got %d", updated.Participants)
-	}
 }
 
 func TestFindPlayerStatus(t *testing.T) {
@@ -108,30 +95,22 @@ func TestFindPlayerStatus(t *testing.T) {
 	repo := NewInMemoryRepository([]Room{
 		{
 			RoomID:            "room-123",
-			ConnectionDetails: "ws://example/rooms/room-123",
-			State:             StateActive,
-			Participants:      1,
+			State:             StateIniting,
 			Players:           []string{"player-1"},
 		},
 		{
 			RoomID:            "room-345",
-			ConnectionDetails: "ws://example/rooms/room-345",
-			State:             StateActive,
-			Participants:      1,
+			State:             StateIniting,
 			Players:           []string{"player-2"},
 		},
 		{
 			RoomID:            "room-133",
-			ConnectionDetails: "ws://example/rooms/room-133",
-			State:             StateActive,
-			Participants:      1,
+			State:             StateIniting,
 			Players:           []string{"player-2", "player-3"},
 		},
 		{
 			RoomID:            "room-163",
-			ConnectionDetails: "ws://example/rooms/room-163",
-			State:             StateInactive,
-			Participants:      1,
+			State:             StateEnded,
 			Players:           []string{"player-1", "player-3"},
 		},
 	})
@@ -157,7 +136,7 @@ func TestFindPlayerStatus(t *testing.T) {
 	if len(filteredRooms1) != 2 {
 		t.Fatalf("expected 2 filtered rooms for player-1, got %d", len(filteredRooms1))
 	}
-	req = httptest.NewRequest(http.MethodGet, "/rooms?status=active", nil)
+	req = httptest.NewRequest(http.MethodGet, "/rooms?status=initing", nil)
 	rec = httptest.NewRecorder()
 
 	r.ServeHTTP(rec, req)
@@ -172,9 +151,9 @@ func TestFindPlayerStatus(t *testing.T) {
 	}
 
 	if len(filteredRooms2) != 3 {
-		t.Fatalf("expected 3 filtered active rooms, got %d", len(filteredRooms2))
+		t.Fatalf("expected 3 filtered initing rooms, got %d", len(filteredRooms2))
 	}
-	req = httptest.NewRequest(http.MethodGet, "/rooms?player=player-3&status=inactive", nil)
+	req = httptest.NewRequest(http.MethodGet, "/rooms?player=player-3&status=ended", nil)
 	rec = httptest.NewRecorder()
 
 	r.ServeHTTP(rec, req)
@@ -188,7 +167,7 @@ func TestFindPlayerStatus(t *testing.T) {
 		t.Fatalf("failed to parse response JSON: %v", err)
 	}
 	if len(filteredRooms3) != 1 {
-		t.Fatalf("expected 1 filtered active rooms, got %d", len(filteredRooms3))
+		t.Fatalf("expected 1 filtered ended rooms, got %d", len(filteredRooms3))
 	}
 }
 
@@ -366,30 +345,22 @@ func TestFindRoom(t *testing.T) {
 	repo := NewInMemoryRepository([]Room{
 		{
 			RoomID:            "room-123",
-			ConnectionDetails: "ws://example/rooms/room-123",
-			State:             StateActive,
-			Participants:      1,
+			State:             StateIniting,
 			Players:           []string{"player-1"},
 		},
 		{
 			RoomID:            "room-345",
-			ConnectionDetails: "ws://example/rooms/room-345",
-			State:             StateActive,
-			Participants:      1,
+			State:             StateIniting,
 			Players:           []string{"player-2"},
 		},
 		{
 			RoomID:            "room-133",
-			ConnectionDetails: "ws://example/rooms/room-133",
-			State:             StateActive,
-			Participants:      1,
+			State:             StateIniting,
 			Players:           []string{"player-2", "player-3"},
 		},
 		{
 			RoomID:            "room-163",
-			ConnectionDetails: "ws://example/rooms/room-163",
-			State:             StateInactive,
-			Participants:      1,
+			State:             StateEnded,
 			Players:           []string{"player-1", "player-3"},
 		},
 	})
