@@ -17,16 +17,16 @@ func NewInMemoryRepository(rooms []Room) *InMemoryRepository {
 func NewDefaultInMemoryRepository() *InMemoryRepository {
 	return NewInMemoryRepository([]Room{
 		{
-			RoomID:            "room-1",
-			State:             StateIniting,
-			Address:           "127.0.0.1",
-			Port:              12345,
-			Players:           []string{},
+			RoomID:  "room-1",
+			State:   StateIniting,
+			Address: "127.0.0.1",
+			Port:    12345,
+			Players: []string{},
 		},
 		{
-			RoomID:            "room-2",
-			State:             StateEnded,
-			Players:           []string{},
+			RoomID:  "room-2",
+			State:   StateEnded,
+			Players: []string{},
 		},
 	})
 }

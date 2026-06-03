@@ -16,14 +16,14 @@ const (
 
 // Room is the main entity for the game-room-manager domain.
 type Room struct {
-	RoomID            string    `json:"roomId"`
-	State             State     `json:"state"`
-	Address           string    `json:"address"`
-	Port              int       `json:"port"`
-	Players           []string  `json:"players"`
-	MaxNumberOfPlayer *int      `json:"maxNumberOfPlayer,omitempty"`
-	Winner            string    `json:"winner"`
-	StartedAt         time.Time `json:"startedAt"`
-	EndedAt           time.Time `json:"endedAt"`
-	ProcessID         int       `json:"processId"`
+	RoomID              string    `json:"roomId"`
+	State               State     `json:"state"`
+	Address             string    `json:"address"`
+	Port                int       `json:"port"`
+	Players             []string  `json:"players"`
+	MaxNumberOfPlayers *int      `json:"maxNumberOfPlayers,omitempty"`
+	Winner              string    `json:"winner"`
+	StartedAt           time.Time `json:"startedAt"`
+	EndedAt             time.Time `json:"endedAt"`
+	ProcessID           int       `json:"processId"`
 }

@@ -30,4 +30,3 @@ func New(cfg *config.Config) (*zap.Logger, error) {
 
 	return logger.With(zap.String("service", "game-room-manager"), zap.String("env", cfg.Env)), nil
 }
-

@@ -2,10 +2,10 @@ package rooms
 
 import (
 	"bytes"
-	"encoding/json"
 	"context"
-	"io"
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -19,8 +19,8 @@ func TestGetRooms_ReturnsJSONList(t *testing.T) {
 
 	repo := NewInMemoryRepository([]Room{
 		{
-			RoomID:            "abc",
-			State:             StateIniting,
+			RoomID: "abc",
+			State:  StateIniting,
 		},
 	})
 	svc := NewService(repo, "test-game-image:latest")
@@ -62,9 +62,9 @@ func TestJoinRoom_AddsPlayerToRoom(t *testing.T) {
 
 	repo := NewInMemoryRepository([]Room{
 		{
-			RoomID:            "room-123",
-			State:             StateIniting,
-			Players:           []string{"player-1"},
+			RoomID:  "room-123",
+			State:   StateIniting,
+			Players: []string{"player-1"},
 		},
 	})
 	svc := NewService(repo, "test-game-image:latest")
@@ -97,10 +97,10 @@ func TestJoinRoom_FullRoom(t *testing.T) {
 	maxPlayers := 2
 	repo := NewInMemoryRepository([]Room{
 		{
-			RoomID:            "room-full",
-			State:             StateIniting,
-			Players:           []string{"player-1", "player-2"},
-			MaxNumberOfPlayer: &maxPlayers,
+			RoomID:             "room-full",
+			State:              StateIniting,
+			Players:            []string{"player-1", "player-2"},
+			MaxNumberOfPlayers: &maxPlayers,
 		},
 	})
 	svc := NewService(repo, "test-game-image:latest")
@@ -134,10 +134,10 @@ func TestJoinRoom_NoLimit(t *testing.T) {
 
 	repo := NewInMemoryRepository([]Room{
 		{
-			RoomID:            "room-no-limit",
-			State:             StateIniting,
-			Players:           []string{"player-1", "player-2"},
-			MaxNumberOfPlayer: nil, // No limit
+			RoomID:             "room-no-limit",
+			State:              StateIniting,
+			Players:            []string{"player-1", "player-2"},
+			MaxNumberOfPlayers: nil, // No limit
 		},
 	})
 	svc := NewService(repo, "test-game-image:latest")
@@ -161,24 +161,24 @@ func TestFindPlayerStatus(t *testing.T) {
 
 	repo := NewInMemoryRepository([]Room{
 		{
-			RoomID:            "room-123",
-			State:             StateIniting,
-			Players:           []string{"player-1"},
+			RoomID:  "room-123",
+			State:   StateIniting,
+			Players: []string{"player-1"},
 		},
 		{
-			RoomID:            "room-345",
-			State:             StateIniting,
-			Players:           []string{"player-2"},
+			RoomID:  "room-345",
+			State:   StateIniting,
+			Players: []string{"player-2"},
 		},
 		{
-			RoomID:            "room-133",
-			State:             StateIniting,
-			Players:           []string{"player-2", "player-3"},
+			RoomID:  "room-133",
+			State:   StateIniting,
+			Players: []string{"player-2", "player-3"},
 		},
 		{
-			RoomID:            "room-163",
-			State:             StateEnded,
-			Players:           []string{"player-1", "player-3"},
+			RoomID:  "room-163",
+			State:   StateEnded,
+			Players: []string{"player-1", "player-3"},
 		},
 	})
 	svc := NewService(repo, "test-game-image:latest")
@@ -402,24 +402,24 @@ func TestFindRoom(t *testing.T) {
 
 	repo := NewInMemoryRepository([]Room{
 		{
-			RoomID:            "room-123",
-			State:             StateIniting,
-			Players:           []string{"player-1"},
+			RoomID:  "room-123",
+			State:   StateIniting,
+			Players: []string{"player-1"},
 		},
 		{
-			RoomID:            "room-345",
-			State:             StateIniting,
-			Players:           []string{"player-2"},
+			RoomID:  "room-345",
+			State:   StateIniting,
+			Players: []string{"player-2"},
 		},
 		{
-			RoomID:            "room-133",
-			State:             StateIniting,
-			Players:           []string{"player-2", "player-3"},
+			RoomID:  "room-133",
+			State:   StateIniting,
+			Players: []string{"player-2", "player-3"},
 		},
 		{
-			RoomID:            "room-163",
-			State:             StateEnded,
-			Players:           []string{"player-1", "player-3"},
+			RoomID:  "room-163",
+			State:   StateEnded,
+			Players: []string{"player-1", "player-3"},
 		},
 	})
 	svc := NewService(repo, "test-game-image:latest")
@@ -462,7 +462,7 @@ func TestCreateGame(t *testing.T) {
 		{
 			name: "successful creation with max players",
 			payload: CreateGameRequest{
-				MaxNumberOfPlayer: intPtr(2),
+				MaxNumberOfPlayers: intPtr(2),
 			},
 			expectedStatus:    http.StatusCreated,
 			expectedMaxPlayer: intPtr(2),
@@ -517,14 +517,14 @@ func TestCreateGame(t *testing.T) {
 			}
 
 			if tc.expectedMaxPlayer == nil {
-				if room.MaxNumberOfPlayer != nil {
-					t.Errorf("expected max players to be nil, got %d", *room.MaxNumberOfPlayer)
+				if room.MaxNumberOfPlayers != nil {
+					t.Errorf("expected max players to be nil, got %d", *room.MaxNumberOfPlayers)
 				}
 			} else {
-				if room.MaxNumberOfPlayer == nil {
+				if room.MaxNumberOfPlayers == nil {
 					t.Errorf("expected max players to be %d, got nil", *tc.expectedMaxPlayer)
-				} else if *room.MaxNumberOfPlayer != *tc.expectedMaxPlayer {
-					t.Errorf("expected max players to be %d, got %d", *tc.expectedMaxPlayer, *room.MaxNumberOfPlayer)
+				} else if *room.MaxNumberOfPlayers != *tc.expectedMaxPlayer {
+					t.Errorf("expected max players to be %d, got %d", *tc.expectedMaxPlayer, *room.MaxNumberOfPlayers)
 				}
 			}
 
@@ -552,10 +552,10 @@ func TestRegisterManualGame(t *testing.T) {
 		{
 			name: "successful creation with max players",
 			payload: RegisterManualGameRequest{
-				RoomID:  "manual-room-1",
-				Address: "localhost",
-				Port:    9876,
-				MaxNumberOfPlayer: intPtr(8),
+				RoomID:             "manual-room-1",
+				Address:            "localhost",
+				Port:               9876,
+				MaxNumberOfPlayers: intPtr(8),
 			},
 			expectedStatus: http.StatusCreated,
 			checkFn: func(t *testing.T, repo *InMemoryRepository, body *bytes.Buffer) {
@@ -566,11 +566,11 @@ func TestRegisterManualGame(t *testing.T) {
 				if room.RoomID != "manual-room-1" {
 					t.Errorf("expected roomID %q, got %q", "manual-room-1", room.RoomID)
 				}
-				if room.State != StateIniting {
-					t.Errorf("expected state %q, got %q", StateIniting, room.State)
+				if room.State != StateReady {
+					t.Errorf("expected state %q, got %q", StateReady, room.State)
 				}
-				if room.MaxNumberOfPlayer == nil || *room.MaxNumberOfPlayer != 8 {
-					t.Errorf("expected maxNumberOfPlayer to be 8, got %v", room.MaxNumberOfPlayer)
+				if room.MaxNumberOfPlayers == nil || *room.MaxNumberOfPlayers != 8 {
+					t.Errorf("expected maxNumberOfPlayers to be 8, got %v", room.MaxNumberOfPlayers)
 				}
 
 				created, err := repo.GetByID(context.Background(), "manual-room-1")
@@ -583,8 +583,8 @@ func TestRegisterManualGame(t *testing.T) {
 				if created.RoomID != "manual-room-1" {
 					t.Errorf("repo: expected roomID %q, got %q", "manual-room-1", created.RoomID)
 				}
-				if created.MaxNumberOfPlayer == nil || *created.MaxNumberOfPlayer != 8 {
-					t.Errorf("repo: expected maxNumberOfPlayer to be 8, got %v", created.MaxNumberOfPlayer)
+				if created.MaxNumberOfPlayers == nil || *created.MaxNumberOfPlayers != 8 {
+					t.Errorf("repo: expected maxNumberOfPlayers to be 8, got %v", created.MaxNumberOfPlayers)
 				}
 			},
 		},
@@ -602,16 +602,16 @@ func TestRegisterManualGame(t *testing.T) {
 					t.Fatalf("failed to unmarshal response body: %v", err)
 				}
 
-				if room.MaxNumberOfPlayer == nil || *room.MaxNumberOfPlayer != 32 {
-					t.Errorf("expected maxNumberOfPlayer to be 32, got %v", room.MaxNumberOfPlayer)
+				if room.MaxNumberOfPlayers == nil || *room.MaxNumberOfPlayers != 32 {
+					t.Errorf("expected maxNumberOfPlayers to be 32, got %v", room.MaxNumberOfPlayers)
 				}
 
 				created, err := repo.GetByID(context.Background(), "manual-room-2")
 				if err != nil {
 					t.Fatalf("failed to get room from repo: %v", err)
 				}
-				if created.MaxNumberOfPlayer == nil || *created.MaxNumberOfPlayer != 32 {
-					t.Errorf("repo: expected maxNumberOfPlayer to be 32, got %v", created.MaxNumberOfPlayer)
+				if created.MaxNumberOfPlayers == nil || *created.MaxNumberOfPlayers != 32 {
+					t.Errorf("repo: expected maxNumberOfPlayers to be 32, got %v", created.MaxNumberOfPlayers)
 				}
 			},
 		},

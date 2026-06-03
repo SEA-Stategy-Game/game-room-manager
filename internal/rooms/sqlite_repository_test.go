@@ -23,16 +23,16 @@ func sampleRoom() *Room {
 	// Use truncated time for stable comparison after JSON marshalling/unmarshalling
 	now := time.Now().UTC().Truncate(time.Second)
 	return &Room{
-		RoomID:            "room-1",
-		State:             StateIniting,
-		Address:           "localhost",
-		Port:              9000,
-		Players:           []string{"alice", "bob"},
-		MaxNumberOfPlayer: &maxPlayers,
-		Winner:            "",
-		StartedAt:         now,
-		EndedAt:           now.Add(10 * time.Minute),
-		ProcessID:         12345,
+		RoomID:             "room-1",
+		State:              StateIniting,
+		Address:            "localhost",
+		Port:               9000,
+		Players:            []string{"alice", "bob"},
+		MaxNumberOfPlayers: &maxPlayers,
+		Winner:             "",
+		StartedAt:          now,
+		EndedAt:            now.Add(10 * time.Minute),
+		ProcessID:          12345,
 	}
 }
 

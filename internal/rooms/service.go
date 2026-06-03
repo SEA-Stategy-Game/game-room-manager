@@ -43,7 +43,7 @@ func (s *Service) JoinGameRoom(ctx context.Context, roomID string, playerID stri
 		return nil
 	}
 
-	if room.MaxNumberOfPlayer != nil && len(room.Players) >= *room.MaxNumberOfPlayer {
+	if room.MaxNumberOfPlayers != nil && len(room.Players) >= *room.MaxNumberOfPlayers {
 		return ErrRoomFull
 	}
 
@@ -110,16 +110,16 @@ func (s *Service) RegisterGameRoom(ctx context.Context, maxPlayers *int) (*Room,
 	}
 
 	room := &Room{
-		RoomID:            uuid.New().String(),
-		State:             StateIniting,
-		Address:           "",
-		Port:              1234,
-		Players:           []string{},
-		Winner:            "",
-		StartedAt:         time.Time{},
-		EndedAt:           time.Time{},
-		ProcessID:         pid,
-		MaxNumberOfPlayer: maxPlayers,
+		RoomID:             uuid.New().String(),
+		State:              StateIniting,
+		Address:            "",
+		Port:               1234,
+		Players:            []string{},
+		Winner:             "",
+		StartedAt:          time.Time{},
+		EndedAt:            time.Time{},
+		ProcessID:          pid,
+		MaxNumberOfPlayers: maxPlayers,
 	}
 
 	return room, s.repo.Create(ctx, room)
@@ -133,16 +133,16 @@ func (s *Service) RegisterManualGame(ctx context.Context, roomID string, address
 	}
 
 	room := &Room{
-		RoomID:    roomID,
-		State:     StateIniting,
-		Address:   address,
-		Port:      port,
-		Players:   []string{},
-		Winner:    "",
-		StartedAt: time.Time{},
-		EndedAt:   time.Time{},
-		ProcessID: 0,
-		MaxNumberOfPlayer: maxPlayers,
+		RoomID:             roomID,
+		State:              StateReady,
+		Address:            address,
+		Port:               port,
+		Players:            []string{},
+		Winner:             "",
+		StartedAt:          time.Time{},
+		EndedAt:            time.Time{},
+		ProcessID:          0,
+		MaxNumberOfPlayers: maxPlayers,
 	}
 
 	return room, s.repo.Create(ctx, room)

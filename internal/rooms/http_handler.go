@@ -135,7 +135,7 @@ func (h *Handler) JoinRoom(w http.ResponseWriter, r *http.Request) {
 }
 
 type CreateGameRequest struct {
-	MaxNumberOfPlayer *int `json:"maxNumberOfPlayer,omitempty"`
+	MaxNumberOfPlayers *int `json:"maxNumberOfPlayers,omitempty"`
 }
 
 func (h *Handler) CreateGame(w http.ResponseWriter, r *http.Request) {
@@ -149,7 +149,7 @@ func (h *Handler) CreateGame(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 	}
 
-	room, err := h.svc.RegisterGameRoom(r.Context(), req.MaxNumberOfPlayer)
+	room, err := h.svc.RegisterGameRoom(r.Context(), req.MaxNumberOfPlayers)
 	if err != nil {
 		h.log.Error("failed to create game", zap.Error(err))
 		http.Error(w, "internal error", http.StatusInternalServerError)
@@ -165,10 +165,10 @@ func (h *Handler) CreateGame(w http.ResponseWriter, r *http.Request) {
 }
 
 type RegisterManualGameRequest struct {
-	RoomID            string `json:"roomId"`
-	Address           string `json:"address"`
-	Port              int    `json:"port"`
-	MaxNumberOfPlayer *int   `json:"maxNumberOfPlayer,omitempty"`
+	RoomID             string `json:"roomId"`
+	Address            string `json:"address"`
+	Port               int    `json:"port"`
+	MaxNumberOfPlayers *int   `json:"maxNumberOfPlayers,omitempty"`
 }
 
 // RegisterManualGame is used for the local test gaming room that is manually created.
@@ -186,7 +186,7 @@ func (h *Handler) RegisterManualGame(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	room, err := h.svc.RegisterManualGame(r.Context(), req.RoomID, req.Address, req.Port, req.MaxNumberOfPlayer)
+	room, err := h.svc.RegisterManualGame(r.Context(), req.RoomID, req.Address, req.Port, req.MaxNumberOfPlayers)
 	if err != nil {
 		h.log.Error("failed to create manual game", zap.Error(err))
 		http.Error(w, "internal error", http.StatusInternalServerError)
