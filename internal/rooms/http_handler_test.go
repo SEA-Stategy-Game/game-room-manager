@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"time"
 	"testing"
 
 	"github.com/go-chi/chi/v5"
@@ -21,6 +22,7 @@ func TestGetRooms_ReturnsJSONList(t *testing.T) {
 		{
 			RoomID: "abc",
 			State:  StateIniting,
+			CreatedAt: time.Now(),
 		},
 	})
 	svc := NewService(repo, "test-game-image:latest")
@@ -65,6 +67,7 @@ func TestJoinRoom_AddsPlayerToRoom(t *testing.T) {
 			RoomID:  "room-123",
 			State:   StateIniting,
 			Players: []string{"player-1"},
+			CreatedAt: time.Now(),
 		},
 	})
 	svc := NewService(repo, "test-game-image:latest")
@@ -101,6 +104,7 @@ func TestJoinRoom_FullRoom(t *testing.T) {
 			State:              StateIniting,
 			Players:            []string{"player-1", "player-2"},
 			MaxNumberOfPlayers: &maxPlayers,
+			CreatedAt:          time.Now(),
 		},
 	})
 	svc := NewService(repo, "test-game-image:latest")
@@ -138,6 +142,7 @@ func TestJoinRoom_NoLimit(t *testing.T) {
 			State:              StateIniting,
 			Players:            []string{"player-1", "player-2"},
 			MaxNumberOfPlayers: nil, // No limit
+			CreatedAt:          time.Now(),
 		},
 	})
 	svc := NewService(repo, "test-game-image:latest")
@@ -156,6 +161,37 @@ func TestJoinRoom_NoLimit(t *testing.T) {
 	}
 }
 
+func TestJoinRoom_IdempotentWhenFull(t *testing.T) {
+	t.Parallel()
+
+	maxPlayers := 2
+	repo := NewInMemoryRepository([]Room{
+		{
+			RoomID:             "room-full",
+			State:              StateIniting,
+			Players:            []string{"player-1", "player-2"},
+			MaxNumberOfPlayers: &maxPlayers,
+			CreatedAt:          time.Now(),
+		},
+	})
+	svc := NewService(repo, "test-game-image:latest")
+	h := NewHandler(svc, zap.NewNop())
+
+	r := chi.NewRouter()
+	r.Post("/rooms/{roomId}/players/{playerId}/join", h.JoinRoom)
+
+	// player-2 is already in the room, which is full.
+	// The request should be idempotent and succeed.
+	req := httptest.NewRequest(http.MethodPost, "/rooms/room-full/players/player-2/join", nil)
+	rec := httptest.NewRecorder()
+
+	r.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, rec.Code)
+	}
+}
+
 func TestFindPlayerStatus(t *testing.T) {
 	t.Parallel()
 
@@ -164,21 +200,25 @@ func TestFindPlayerStatus(t *testing.T) {
 			RoomID:  "room-123",
 			State:   StateIniting,
 			Players: []string{"player-1"},
+			CreatedAt: time.Now(),
 		},
 		{
 			RoomID:  "room-345",
 			State:   StateIniting,
 			Players: []string{"player-2"},
+			CreatedAt: time.Now(),
 		},
 		{
 			RoomID:  "room-133",
 			State:   StateIniting,
 			Players: []string{"player-2", "player-3"},
+			CreatedAt: time.Now(),
 		},
 		{
 			RoomID:  "room-163",
 			State:   StateEnded,
 			Players: []string{"player-1", "player-3"},
+			CreatedAt: time.Now(),
 		},
 	})
 	svc := NewService(repo, "test-game-image:latest")
@@ -267,16 +307,17 @@ func TestSetGameStatus_AllStates(t *testing.T) {
 		{
 			name:        "Transition to initing updates StartedAt time",
 			roomID:      "room-initing",
-			statusParam: "init",
+			statusParam: "initing",
 			winnerParam: nil,
 			initialRoom: &Room{
 				RoomID: "room-initing",
 				State:  StateReady,
+				CreatedAt: time.Now(),
 			},
 			expectedStatus: http.StatusOK,
-			expectedState:  "init",
+			expectedState:  StateIniting,
 			checkFn: func(t *testing.T, updated *Room) {
-				if updated.StartedAt.IsZero() {
+				if updated.StartedAt == nil {
 					t.Error("expected StartedAt to be populated, got zero time")
 				}
 			},
@@ -288,7 +329,8 @@ func TestSetGameStatus_AllStates(t *testing.T) {
 			winnerParam: nil,
 			initialRoom: &Room{
 				RoomID: "room-running",
-				State:  "init",
+				State:  StateIniting,
+				CreatedAt: time.Now(),
 			},
 			expectedStatus: http.StatusOK,
 			expectedState:  StateRunning,
@@ -301,6 +343,7 @@ func TestSetGameStatus_AllStates(t *testing.T) {
 			initialRoom: &Room{
 				RoomID: "room-ended",
 				State:  StateRunning,
+				CreatedAt: time.Now(),
 			},
 			expectedStatus: http.StatusOK,
 			expectedState:  StateEnded,
@@ -308,7 +351,7 @@ func TestSetGameStatus_AllStates(t *testing.T) {
 				if updated.Winner != "player-1" {
 					t.Errorf("expected winner 'player-1', got %q", updated.Winner)
 				}
-				if updated.EndedAt.IsZero() {
+				if updated.EndedAt == nil {
 					t.Error("expected EndedAt to be populated, got zero time")
 				}
 			},
@@ -321,11 +364,12 @@ func TestSetGameStatus_AllStates(t *testing.T) {
 			initialRoom: &Room{
 				RoomID: "room-crashed",
 				State:  StateRunning,
+				CreatedAt: time.Now(),
 			},
 			expectedStatus: http.StatusOK,
 			expectedState:  StateCrashed,
 			checkFn: func(t *testing.T, updated *Room) {
-				if updated.EndedAt.IsZero() {
+				if updated.EndedAt == nil {
 					t.Error("expected EndedAt to be populated, got zero time")
 				}
 			},
@@ -405,21 +449,25 @@ func TestFindRoom(t *testing.T) {
 			RoomID:  "room-123",
 			State:   StateIniting,
 			Players: []string{"player-1"},
+			CreatedAt: time.Now(),
 		},
 		{
 			RoomID:  "room-345",
 			State:   StateIniting,
 			Players: []string{"player-2"},
+			CreatedAt: time.Now(),
 		},
 		{
 			RoomID:  "room-133",
 			State:   StateIniting,
 			Players: []string{"player-2", "player-3"},
+			CreatedAt: time.Now(),
 		},
 		{
 			RoomID:  "room-163",
 			State:   StateEnded,
 			Players: []string{"player-1", "player-3"},
+			CreatedAt: time.Now(),
 		},
 	})
 	svc := NewService(repo, "test-game-image:latest")
@@ -634,7 +682,7 @@ func TestRegisterManualGame(t *testing.T) {
 		{
 			name: "duplicate roomId overrides existing room",
 			initialRooms: []Room{
-				{RoomID: "manual-room-1", Address: "old-address", Port: 1111, Players: []string{"p1"}},
+				{RoomID: "manual-room-1", Address: "old-address", Port: 1111, Players: []string{"p1"}, CreatedAt: time.Now()},
 			},
 			payload: RegisterManualGameRequest{
 				RoomID:  "manual-room-1",

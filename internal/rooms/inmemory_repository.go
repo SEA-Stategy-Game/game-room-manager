@@ -1,6 +1,8 @@
 package rooms
 
-import "context"
+import (
+	"context"
+)
 
 // InMemoryRepository is a simple adapter that serves hard-coded rooms.
 // It can be replaced by a database-backed repository later.
@@ -11,7 +13,9 @@ type InMemoryRepository struct {
 func NewInMemoryRepository(rooms []Room) *InMemoryRepository {
 	copied := make([]Room, len(rooms))
 	copy(copied, rooms)
-	return &InMemoryRepository{rooms: copied}
+	return &InMemoryRepository{
+		rooms: copied,
+	}
 }
 
 func NewDefaultInMemoryRepository() *InMemoryRepository {
@@ -76,4 +80,22 @@ func (r *InMemoryRepository) Upsert(ctx context.Context, room *Room) error {
 	}
 	r.rooms = append(r.rooms, *room)
 	return nil
+}
+
+func (r *InMemoryRepository) ReadModifyWrite(ctx context.Context, roomID string, modifyFn func(room *Room) error) error {
+	_ = ctx
+	var room *Room
+	for i := range r.rooms {
+		if r.rooms[i].RoomID == roomID {
+			room = &r.rooms[i]
+		}
+	}
+
+	if room == nil {
+		return ErrRoomNotFound
+	}
+
+	// For the in-memory repo, we can just call the function directly.
+	// Concurrency is handled by the SQLite implementation.
+	return modifyFn(room)
 }
