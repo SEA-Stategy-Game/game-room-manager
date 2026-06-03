@@ -54,7 +54,7 @@ func (s *Service) JoinGameRoom(ctx context.Context, roomID string, playerID stri
 func (s *Service) SetGameStatus(ctx context.Context, roomID string, status string, winner string, statusReason string) error {
 	state := State(status)
 	return s.repo.ReadModifyWrite(ctx, roomID, func(room *Room) error {
-		if state == StateIniting {
+		if state == StateRunning {
 			now := time.Now()
 			room.StartedAt = &now
 		}
