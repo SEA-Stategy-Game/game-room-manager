@@ -23,6 +23,7 @@ type Room struct {
 	Players             []string  `json:"players"`
 	MaxNumberOfPlayers *int      `json:"maxNumberOfPlayers,omitempty"`
 	Winner              string    `json:"winner"`
+	StatusReason        string    `json:"statusReason,omitempty"`
 	StartedAt           time.Time `json:"startedAt"`
 	EndedAt             time.Time `json:"endedAt"`
 	ProcessID           int       `json:"processId"`

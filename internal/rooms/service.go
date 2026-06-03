@@ -59,7 +59,7 @@ func (s *Service) JoinGameRoom(ctx context.Context, roomID string, playerID stri
 	return s.repo.Update(ctx, room)
 }
 
-func (s *Service) SetGameStatus(ctx context.Context, roomID string, status string, winner string) error {
+func (s *Service) SetGameStatus(ctx context.Context, roomID string, status string, winner string, statusReason string) error {
 	room, err := s.repo.GetByID(ctx, roomID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -86,6 +86,7 @@ func (s *Service) SetGameStatus(ctx context.Context, roomID string, status strin
 	}
 
 	room.State = State(status)
+	room.StatusReason = statusReason
 
 	return s.repo.Update(ctx, room)
 }

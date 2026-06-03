@@ -202,8 +202,9 @@ func (h *Handler) RegisterManualGame(w http.ResponseWriter, r *http.Request) {
 }
 
 type SetStatusRequest struct {
-	Status string  `json:"status"`
-	Winner *string `json:"winner"`
+	Status       string  `json:"status"`
+	Winner       *string `json:"winner"`
+	StatusReason *string `json:"statusReason,omitempty"`
 }
 
 func (h *Handler) SetStatus(w http.ResponseWriter, r *http.Request) {
@@ -227,7 +228,12 @@ func (h *Handler) SetStatus(w http.ResponseWriter, r *http.Request) {
 		winner = *req.Winner
 	}
 
-	err := h.svc.SetGameStatus(r.Context(), roomID, req.Status, winner)
+	var statusReason string
+	if req.StatusReason != nil {
+		statusReason = *req.StatusReason
+	}
+
+	err := h.svc.SetGameStatus(r.Context(), roomID, req.Status, winner, statusReason)
 	if err != nil {
 		if errors.Is(err, ErrRoomNotFound) {
 			http.Error(w, err.Error(), http.StatusNotFound)
