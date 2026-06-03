@@ -247,6 +247,10 @@ func (h *Handler) SetStatus(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusNotFound)
 			return
 		}
+		if errors.Is(err, ErrRoomFinished) {
+			http.Error(w, err.Error(), http.StatusConflict)
+			return
+		}
 		h.log.Error("failed to set state", zap.Error(err))
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return

@@ -374,6 +374,19 @@ func TestSetGameStatus_AllStates(t *testing.T) {
 				}
 			},
 		},
+		{
+			name:        "Cannot update a room that has ended",
+			roomID:      "room-already-ended",
+			statusParam: "running",
+			winnerParam: nil,
+			initialRoom: &Room{
+				RoomID:    "room-already-ended",
+				State:     StateEnded,
+				CreatedAt: time.Now(),
+			},
+			expectedStatus: http.StatusConflict,
+			expectedState:  StateEnded,
+		},
 	}
 
 	for _, tc := range tests {

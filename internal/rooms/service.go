@@ -11,6 +11,7 @@ import (
 
 var ErrRoomFull = errors.New("room is full")
 var ErrRoomNotFound = errors.New("room not found")
+var ErrRoomFinished = errors.New("cannot update a room that has already ended or crashed")
 
 // Service is the application/service layer (use-cases) for rooms.
 type Service struct {
@@ -54,7 +55,11 @@ func (s *Service) JoinGameRoom(ctx context.Context, roomID string, playerID stri
 func (s *Service) SetGameStatus(ctx context.Context, roomID string, status string, winner string, statusReason string) error {
 	state := State(status)
 	return s.repo.ReadModifyWrite(ctx, roomID, func(room *Room) error {
-		if state == StateRunning {
+		if room.State == StateEnded || room.State == StateCrashed {
+			return ErrRoomFinished
+		}
+
+		if state == StateIniting {
 			now := time.Now()
 			room.StartedAt = &now
 		}
