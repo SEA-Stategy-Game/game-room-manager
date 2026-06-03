@@ -146,5 +146,5 @@ func (s *Service) RegisterManualGame(ctx context.Context, roomID string, address
 		MaxNumberOfPlayers: maxPlayers,
 	}
 
-	return room, s.repo.Create(ctx, room)
+	return room, s.repo.Upsert(ctx, room)
 }

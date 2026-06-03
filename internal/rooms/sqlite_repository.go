@@ -140,3 +140,21 @@ func (r *SQLiteRepository) Update(ctx context.Context, room *Room) error {
 
 	return nil
 }
+
+func (r *SQLiteRepository) Upsert(ctx context.Context, room *Room) error {
+	data, err := json.Marshal(room)
+	if err != nil {
+		return err
+	}
+
+	// REPLACE INTO is a SQLite extension that will delete the existing row
+	// and insert a new one if a primary key constraint fails.
+	_, err = r.db.ExecContext(
+		ctx,
+		`REPLACE INTO rooms (room_id, data) VALUES (?, ?)`,
+		room.RoomID,
+		string(data),
+	)
+
+	return err
+}

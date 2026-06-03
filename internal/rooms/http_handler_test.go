@@ -541,6 +541,7 @@ func TestRegisterManualGame(t *testing.T) {
 
 	type testCase struct {
 		name           string
+		initialRooms   []Room
 		payload        interface{}
 		expectedStatus int
 		checkFn        func(t *testing.T, repo *InMemoryRepository, body *bytes.Buffer)
@@ -630,6 +631,33 @@ func TestRegisterManualGame(t *testing.T) {
 			payload:        map[string]interface{}{"roomId": "manual-room-1", "address": "localhost"},
 			expectedStatus: http.StatusBadRequest,
 		},
+		{
+			name: "duplicate roomId overrides existing room",
+			initialRooms: []Room{
+				{RoomID: "manual-room-1", Address: "old-address", Port: 1111, Players: []string{"p1"}},
+			},
+			payload: RegisterManualGameRequest{
+				RoomID:  "manual-room-1",
+				Address: "new-address",
+				Port:    9876,
+			},
+			expectedStatus: http.StatusCreated,
+			checkFn: func(t *testing.T, repo *InMemoryRepository, body *bytes.Buffer) {
+				updated, err := repo.GetByID(context.Background(), "manual-room-1")
+				if err != nil {
+					t.Fatalf("failed to get room from repo: %v", err)
+				}
+				if updated.Address != "new-address" {
+					t.Errorf("expected address to be 'new-address', got %q", updated.Address)
+				}
+				if updated.Port != 9876 {
+					t.Errorf("expected port to be 9876, got %d", updated.Port)
+				}
+				if len(updated.Players) != 0 {
+					t.Errorf("expected players to be reset to empty, got %d", len(updated.Players))
+				}
+			},
+		},
 	}
 
 	for _, tc := range tests {
@@ -637,7 +665,7 @@ func TestRegisterManualGame(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			repo := NewInMemoryRepository([]Room{})
+			repo := NewInMemoryRepository(tc.initialRooms)
 			svc := NewService(repo, "test-game-image:latest")
 			h := NewHandler(svc, zap.NewNop())
 

@@ -68,3 +68,15 @@ func (r *JSONRepository) Create(ctx context.Context, room *Room) error {
 	r.rooms = append(r.rooms, *room)
 	return r.save()
 }
+
+func (r *JSONRepository) Upsert(ctx context.Context, room *Room) error {
+	_ = ctx
+	for i := range r.rooms {
+		if r.rooms[i].RoomID == room.RoomID {
+			r.rooms[i] = *room
+			return r.save()
+		}
+	}
+	r.rooms = append(r.rooms, *room)
+	return r.save()
+}

@@ -65,3 +65,15 @@ func (r *InMemoryRepository) Create(ctx context.Context, room *Room) error {
 	r.rooms = append(r.rooms, *room)
 	return nil
 }
+
+func (r *InMemoryRepository) Upsert(ctx context.Context, room *Room) error {
+	_ = ctx
+	for i := range r.rooms {
+		if r.rooms[i].RoomID == room.RoomID {
+			r.rooms[i] = *room
+			return nil
+		}
+	}
+	r.rooms = append(r.rooms, *room)
+	return nil
+}
