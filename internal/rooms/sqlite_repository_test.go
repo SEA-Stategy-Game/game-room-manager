@@ -5,12 +5,14 @@ import (
 	"reflect"
 	"testing"
 	"time"
+
+	"go.uber.org/zap"
 )
 
 func newTestRepo(t *testing.T) *SQLiteRepository {
 	t.Helper()
 
-	repo, err := NewSQLiteRepository(":memory:")
+	repo, err := NewSQLiteRepository(":memory:", zap.NewNop())
 	if err != nil {
 		t.Fatalf("failed to create repo: %v", err)
 	}
@@ -22,6 +24,8 @@ func sampleRoom() *Room {
 	maxPlayers := 4
 	// Use truncated time for stable comparison after JSON marshalling/unmarshalling
 	now := time.Now().UTC().Truncate(time.Second)
+	started := now.Add(5 * time.Minute)
+	ended := started.Add(10 * time.Minute)
 	return &Room{
 		RoomID:             "room-1",
 		State:              StateIniting,
@@ -30,8 +34,9 @@ func sampleRoom() *Room {
 		Players:            []string{"alice", "bob"},
 		MaxNumberOfPlayers: &maxPlayers,
 		Winner:             "",
-		StartedAt:          now,
-		EndedAt:            now.Add(10 * time.Minute),
+		CreatedAt:          now,
+		StartedAt:          &started,
+		EndedAt:            &ended,
 		ProcessID:          12345,
 	}
 }
@@ -80,6 +85,7 @@ func TestSQLiteRepository_List(t *testing.T) {
 		t.Fatalf("expected 2 rooms, got %d", len(rooms))
 	}
 }
+
 func TestSQLiteRepository_Update(t *testing.T) {
 	repo := newTestRepo(t)
 	ctx := context.Background()

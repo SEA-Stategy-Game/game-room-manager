@@ -9,4 +9,6 @@ type Repository interface {
 	GetByID(ctx context.Context, roomID string) (*Room, error)
 	Update(ctx context.Context, room *Room) error
 	Create(ctx context.Context, room *Room) error
+	Upsert(ctx context.Context, room *Room) error
+	ReadModifyWrite(ctx context.Context, roomID string, modifyFn func(room *Room) error) error
 }

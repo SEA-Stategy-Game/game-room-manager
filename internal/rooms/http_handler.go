@@ -2,6 +2,7 @@ package rooms
 
 import (
 	"encoding/json"
+	"database/sql"
 	"errors"
 	"net/http"
 
@@ -20,20 +21,21 @@ func NewHandler(svc *Service, log *zap.Logger) *Handler {
 }
 
 // Helper functions for querying.
-func findPlayer(rooms []Room, searchPlayer string) ([]Room, error) {
+func findPlayer(rooms []Room, searchPlayer string) []Room {
 	var found []Room
 
 	for _, room := range rooms {
 		for _, player := range room.Players {
 			if player == searchPlayer {
 				found = append(found, room)
+				break
 			}
 		}
 	}
-	return found, nil
+	return found
 }
 
-func findByStatus(rooms []Room, searchStat string) ([]Room, error) {
+func findByStatus(rooms []Room, searchStat string) []Room {
 	var found []Room
 
 	targetState := State(searchStat)
@@ -43,10 +45,10 @@ func findByStatus(rooms []Room, searchStat string) ([]Room, error) {
 			found = append(found, room)
 		}
 	}
-	return found, nil
+	return found
 }
 
-func findDouble(rooms []Room, searchPlayer string, searchStat string) ([]Room, error) {
+func findDouble(rooms []Room, searchPlayer string, searchStat string) []Room {
 	var found []Room
 
 	targetState := State(searchStat)
@@ -56,31 +58,17 @@ func findDouble(rooms []Room, searchPlayer string, searchStat string) ([]Room, e
 			for _, player := range room.Players {
 				if player == searchPlayer {
 					found = append(found, room)
+					break
 				}
 			}
 		}
 	}
-	return found, nil
+	return found
 }
 
 func (h *Handler) GetRooms(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 	rooms, err := h.svc.ListRooms(r.Context())
-
-	// Check for a query, if not, just show all.
-	player := query.Get("player")
-	status := query.Get("status")
-	if player != "" && status == "" {
-		rooms, err = findPlayer(rooms, player)
-	}
-
-	if status != "" && player == "" {
-		rooms, err = findByStatus(rooms, status)
-	}
-
-	if player != "" && status != "" {
-		rooms, err = findDouble(rooms, player, status)
-	}
 
 	if err != nil {
 		h.log.Error("failed to list rooms", zap.Error(err))
@@ -88,29 +76,49 @@ func (h *Handler) GetRooms(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Check for a query, if not, just show all.
+	player := query.Get("player")
+	status := query.Get("status")
+	if player != "" && status == "" {
+		rooms = findPlayer(rooms, player)
+	}
+
+	if status != "" && player == "" {
+		rooms = findByStatus(rooms, status)
+	}
+
+	if player != "" && status != "" {
+		rooms = findDouble(rooms, player, status)
+	}
+
 	// h.log.Info("retrieved rooms", zap.Any("rooms", rooms))
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	if err := json.NewEncoder(w).Encode(rooms); err != nil {
-		h.log.Error("failed to encode rooms response", zap.Error(err))
+		h.log.Error("failed to encode response", zap.Error(err))
 	}
 }
 
 func (h *Handler) GetRoom(w http.ResponseWriter, r *http.Request) {
 	roomID := chi.URLParam(r, "roomId")
 
-	rooms, err := h.svc.FindRoom(r.Context(), roomID)
+	room, err := h.svc.FindRoom(r.Context(), roomID)
 
 	if err != nil {
+		// The service layer passes up repository errors.
+		// We check if it's a known "not found" error.
+		if errors.Is(err, ErrRoomNotFound) || errors.Is(err, sql.ErrNoRows) {
+			http.Error(w, "room not found", http.StatusNotFound)
+			return
+		}
 		h.log.Error("failed to find room", zap.Error(err))
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
 
-	// h.log.Info("retrieved rooms", zap.Any("rooms", rooms))
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	if err := json.NewEncoder(w).Encode(rooms); err != nil {
+	if err := json.NewEncoder(w).Encode(room); err != nil {
 		h.log.Error("failed to encode response", zap.Error(err))
 	}
 }
@@ -237,6 +245,10 @@ func (h *Handler) SetStatus(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if errors.Is(err, ErrRoomNotFound) {
 			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		}
+		if errors.Is(err, ErrRoomFinished) {
+			http.Error(w, err.Error(), http.StatusConflict)
 			return
 		}
 		h.log.Error("failed to set state", zap.Error(err))

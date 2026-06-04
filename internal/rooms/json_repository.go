@@ -26,6 +26,7 @@ func NewJSONRepository(path string) (*JSONRepository, error) {
 }
 
 // save writes the current rooms slice back to the JSON file.
+// This method is not thread-safe and must be called from a method that holds a write lock.
 func (r *JSONRepository) save() error {
 	data, err := json.MarshalIndent(r.rooms, "", "  ")
 	if err != nil {
@@ -66,5 +67,39 @@ func (r *JSONRepository) Update(ctx context.Context, room *Room) error {
 func (r *JSONRepository) Create(ctx context.Context, room *Room) error {
 	_ = ctx
 	r.rooms = append(r.rooms, *room)
+	return r.save()
+}
+
+func (r *JSONRepository) Upsert(ctx context.Context, room *Room) error {
+	_ = ctx
+	for i := range r.rooms {
+		if r.rooms[i].RoomID == room.RoomID {
+			r.rooms[i] = *room
+			return r.save()
+		}
+	}
+	r.rooms = append(r.rooms, *room)
+	return r.save()
+}
+
+func (r *JSONRepository) ReadModifyWrite(ctx context.Context, roomID string, modifyFn func(room *Room) error) error {
+	_ = ctx
+	var room *Room
+	for i := range r.rooms {
+		if r.rooms[i].RoomID == roomID {
+			room = &r.rooms[i]
+		}
+	}
+
+	if room == nil {
+		return ErrRoomNotFound
+	}
+
+	// Apply the modification.
+	if err := modifyFn(room); err != nil {
+		return err
+	}
+
+	// Persist the changes to the file.
 	return r.save()
 }

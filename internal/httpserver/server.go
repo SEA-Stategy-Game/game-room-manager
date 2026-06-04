@@ -51,7 +51,7 @@ func New(cfg *config.Config, logger *zap.Logger) (*Server, error) {
 	}
 	logger.Info("initializing database", zap.String("path", dbPath))
 
-	roomRepo, err := rooms.NewSQLiteRepository(dbPath)
+	roomRepo, err := rooms.NewSQLiteRepository(dbPath, logger)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize room repository: %w", err)
 	}
