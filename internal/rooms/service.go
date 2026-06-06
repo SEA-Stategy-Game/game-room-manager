@@ -5,7 +5,6 @@ import (
 	"errors"
 	"flag"
 	"net"
-	"os"
 	"time"
 
 	"github.com/google/uuid"
@@ -118,7 +117,7 @@ func (s *Service) RegisterGameRoom(ctx context.Context, maxPlayers *int) (*Room,
 		}
 	}
 
-	var ip = os.Getenv("IP_ADDRESS")
+	var ip = "127.0.0.1"
 
 	room := &Room{
 		RoomID:             id,

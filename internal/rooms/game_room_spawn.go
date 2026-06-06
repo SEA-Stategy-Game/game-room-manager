@@ -28,7 +28,7 @@ func runDocker(port int, id string, max int, image string) (int, error) {
 		return 0, fmt.Errorf("failed to create docker client: %w", err)
 	}
 
-	containerPort := nat.Port("12345/tcp")
+	containerPort := nat.Port("12345/udp")
 	hostPort := fmt.Sprintf("%d", port)
 
 	resp, err := cli.ContainerCreate(ctx, &container.Config{
