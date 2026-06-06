@@ -137,3 +137,14 @@ func (s *Service) RegisterManualGame(ctx context.Context, roomID string, address
 	//Using upsert so that the room is "refreshed" each time it's created
 	return room, s.repo.Upsert(ctx, room)
 }
+
+func (s *Service) Heartbeat(ctx context.Context, roomID string) error {
+	return s.repo.ReadModifyWrite(ctx, roomID, func(room *Room) error {
+		if room.State == StateEnded || room.State == StateCrashed {
+			return errors.New("heartbeat cannot be sent")
+		}
+
+		room.LastHeartbeatAt = time.Now()
+		return nil
+	})
+}
