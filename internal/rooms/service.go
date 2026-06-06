@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"flag"
-	"fmt"
 	"net"
 	"os"
 	"time"
@@ -84,21 +83,13 @@ func (s *Service) SetGameStatus(ctx context.Context, roomID string, status strin
 	})
 }
 
-func findFreePort(start, end int) (int, error) {
-	for p := start; p <= end; p++ {
-		ln, err := net.Listen("tcp", fmt.Sprintf(":%d", p))
-		if err == nil {
-			ln.Close()
-			return p, nil
-		}
-	}
-	return 0, fmt.Errorf("no free ports available")
-}
-
 func (s *Service) RegisterGameRoom(ctx context.Context, maxPlayers *int) (*Room, error) {
 
-	port, err := findFreePort(7000, 8000)
+	ln, _ := net.Listen("tcp", ":0")
+	port := ln.Addr().(*net.TCPAddr).Port
+	ln.Close()
 
+	var err error
 	var pid int
 
 	if maxPlayers == nil {
@@ -108,10 +99,20 @@ func (s *Service) RegisterGameRoom(ctx context.Context, maxPlayers *int) (*Room,
 
 	id := uuid.New().String()
 
+	if err != nil {
+		ln.Close() // release on failure
+		return nil, err
+	}
+
+	// release AFTER successful spawn
+	ln.Close()
 	if flag.Lookup("test.v") != nil {
 		pid = 12345
 	} else {
 		pid, err = SpawnGameRoom(port, id, *maxPlayers)
+		go func() {
+			defer ln.Close()
+		}()
 		if err != nil {
 			return nil, err
 		}
