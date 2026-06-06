@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"net"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -97,7 +98,7 @@ func (s *Service) RegisterGameRoom(ctx context.Context, maxPlayers *int) (*Room,
 		maxPlayers = &defaultValue
 	}
 
-	id := uuid.New().String()
+	id := strings.Replace(uuid.New().String(), "-", "", -1)[:8]
 
 	if err != nil {
 		ln.Close() // release on failure
