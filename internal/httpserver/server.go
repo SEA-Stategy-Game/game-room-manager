@@ -151,10 +151,6 @@ func (s *Server) startHeartbeatChecker(ctx context.Context, checkInterval, timeo
 					continue
 				}
 
-				if room.State == rooms.StateCrashed && time.Since(room.CreatedAt) < 30*time.Second {
-					continue
-				}
-
 				// Fallback threshold check
 				lastHeartbeat := room.LastHeartbeatAt
 				if lastHeartbeat.IsZero() {
