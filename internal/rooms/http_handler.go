@@ -3,7 +3,6 @@ package rooms
 import (
 	"database/sql"
 	"encoding/json"
-	"database/sql"
 	"errors"
 	"net/http"
 
