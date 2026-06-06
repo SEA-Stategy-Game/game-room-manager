@@ -109,7 +109,7 @@ func (s *Service) RegisterGameRoom(ctx context.Context, maxPlayers *int) (*Room,
 	if flag.Lookup("test.v") != nil {
 		pid = 12345
 	} else {
-		pid, err = SpawnGameRoom(port, id, *maxPlayers)
+		pid, err = SpawnGameRoom(port, id, *maxPlayers, s.gameImage)
 		go func() {
 			defer ln.Close()
 		}()

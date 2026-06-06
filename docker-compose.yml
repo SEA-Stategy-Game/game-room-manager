@@ -11,6 +11,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
     environment:
       - DB_PATH=/data/manager.db
+      - RUNNING_IN_DOCKER=true
 
   planbackend:
     build:
