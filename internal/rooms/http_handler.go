@@ -1,8 +1,8 @@
 package rooms
 
 import (
-	"encoding/json"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"net/http"
 
@@ -258,4 +258,28 @@ func (h *Handler) SetStatus(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write([]byte("room status updated"))
+}
+
+func (h *Handler) Heartbeat(w http.ResponseWriter, r *http.Request) {
+	roomID := chi.URLParam(r, "roomId")
+	if roomID == "" {
+		http.Error(w, "missing room id", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.svc.Heartbeat(r.Context(), roomID); err != nil {
+		if errors.Is(err, ErrRoomNotFound) {
+			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		}
+		if errors.Is(err, errors.New("heartbeat cannot be sent")) {
+			http.Error(w, err.Error(), http.StatusConflict)
+			return
+		}
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write([]byte(`{"status":"alive"}`))
 }

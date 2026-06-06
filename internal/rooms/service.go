@@ -43,11 +43,24 @@ func (s *Service) JoinGameRoom(ctx context.Context, roomID string, playerID stri
 				return nil // Idempotent: player is already in the room
 			}
 		}
+		return s.repo.ReadModifyWrite(ctx, roomID, func(room *Room) error {
+			// Ensure the player isn't already in the room
+			for _, p := range room.Players {
+				if p == playerID {
+					return nil // Idempotent: player is already in the room
+				}
+			}
 
-		if room.MaxNumberOfPlayers != nil && len(room.Players) >= *room.MaxNumberOfPlayers {
-			return ErrRoomFull
-		}
+			if room.MaxNumberOfPlayers != nil && len(room.Players) >= *room.MaxNumberOfPlayers {
+				return ErrRoomFull
+			}
+			if room.MaxNumberOfPlayers != nil && len(room.Players) >= *room.MaxNumberOfPlayers {
+				return ErrRoomFull
+			}
 
+			room.Players = append(room.Players, playerID)
+			return nil
+		})
 		room.Players = append(room.Players, playerID)
 		return nil
 	})
@@ -127,6 +140,7 @@ func (s *Service) RegisterGameRoom(ctx context.Context, maxPlayers *int) (*Room,
 		Players:            []string{},
 		Winner:             "",
 		CreatedAt:          time.Now(),
+		LastHeartbeatAt:    time.Now(),
 		ProcessID:          pid,
 		MaxNumberOfPlayers: maxPlayers,
 	}
@@ -149,10 +163,22 @@ func (s *Service) RegisterManualGame(ctx context.Context, roomID string, address
 		Players:            []string{},
 		Winner:             "",
 		CreatedAt:          time.Now(),
+		LastHeartbeatAt:    time.Now(),
 		ProcessID:          0,
 		MaxNumberOfPlayers: maxPlayers,
 	}
 
 	//Using upsert so that the room is "refreshed" each time it's created
 	return room, s.repo.Upsert(ctx, room)
+}
+
+func (s *Service) Heartbeat(ctx context.Context, roomID string) error {
+	return s.repo.ReadModifyWrite(ctx, roomID, func(room *Room) error {
+		if room.State == StateEnded || room.State == StateCrashed {
+			return errors.New("heartbeat cannot be sent")
+		}
+
+		room.LastHeartbeatAt = time.Now()
+		return nil
+	})
 }

@@ -17,9 +17,10 @@ import (
 )
 
 type Server struct {
-	cfg    *config.Config
-	logger *zap.Logger
-	server *http.Server
+	cfg     *config.Config
+	logger  *zap.Logger
+	server  *http.Server
+	roomSvc *rooms.Service
 }
 
 func zapRequestLogger(log *zap.Logger) func(http.Handler) http.Handler {
@@ -63,6 +64,7 @@ func New(cfg *config.Config, logger *zap.Logger) (*Server, error) {
 	r.Post("/rooms/{roomId}/players/{playerId}/join", roomHandler.JoinRoom)
 	r.Post("/rooms/create", roomHandler.CreateGame)
 	r.Post("/rooms/{roomId}/status", roomHandler.SetStatus)
+	r.Post("/rooms/{roomId}/heartbeat", roomHandler.Heartbeat)
 
 	r.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		logger.Info("health check", zap.String("path", r.URL.Path), zap.String("method", r.Method))
@@ -84,14 +86,19 @@ func New(cfg *config.Config, logger *zap.Logger) (*Server, error) {
 	}
 
 	return &Server{
-		cfg:    cfg,
-		logger: logger,
-		server: srv,
+		cfg:     cfg,
+		logger:  logger,
+		server:  srv,
+		roomSvc: roomSvc,
 	}, nil
 }
 
 func (s *Server) Run() error {
 	s.logger.Info("starting HTTP server", zap.String("addr", s.server.Addr))
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go s.startHeartbeatChecker(ctx, 10*time.Second, 30*time.Second)
 
 	errCh := make(chan error, 1)
 	go func() {
@@ -117,5 +124,54 @@ func (s *Server) Run() error {
 	case err := <-errCh:
 		s.logger.Error("server error", zap.Error(err))
 		return err
+	}
+}
+
+func (s *Server) startHeartbeatChecker(ctx context.Context, checkInterval, timeoutDuration time.Duration) {
+	ticker := time.NewTicker(checkInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			s.logger.Debug("checking for dead game rooms...")
+
+			roomsList, err := s.roomSvc.ListRooms(ctx)
+			if err != nil {
+				s.logger.Error("sweeper failed to fetch rooms", zap.Error(err))
+				continue
+			}
+
+			now := time.Now()
+			for _, room := range roomsList {
+				// Only track active infrastructure states
+				if room.State == rooms.StateEnded || room.State == rooms.StateCrashed {
+					continue
+				}
+
+				// Fallback threshold check
+				lastHeartbeat := room.LastHeartbeatAt
+				if lastHeartbeat.IsZero() {
+					lastHeartbeat = room.CreatedAt
+				}
+
+				if now.Sub(lastHeartbeat) > timeoutDuration {
+					s.logger.Warn("room timed out, marking as crashed",
+						zap.String("roomId", room.RoomID),
+						zap.Duration("idle_time", now.Sub(lastHeartbeat)),
+					)
+
+					_ = s.roomSvc.SetGameStatus(
+						ctx,
+						room.RoomID,
+						"crashed",
+						"",
+						"Heartbeat timeout expired; instance dead.",
+					)
+				}
+			}
+		}
 	}
 }
