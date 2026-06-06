@@ -4,6 +4,9 @@ import (
 	"context"
 	"errors"
 	"flag"
+	"fmt"
+	"net"
+	"os"
 	"time"
 
 	"github.com/google/uuid"
@@ -81,15 +84,27 @@ func (s *Service) SetGameStatus(ctx context.Context, roomID string, status strin
 	})
 }
 
+func findFreePort(start, end int) (int, error) {
+	for p := start; p <= end; p++ {
+		ln, err := net.Listen("tcp", fmt.Sprintf(":%d", p))
+		if err == nil {
+			ln.Close()
+			return p, nil
+		}
+	}
+	return 0, fmt.Errorf("no free ports available")
+}
+
 func (s *Service) RegisterGameRoom(ctx context.Context, maxPlayers *int) (*Room, error) {
 
+	port, err := findFreePort(7000, 8000)
+
 	var pid int
-	var err error
 
 	if flag.Lookup("test.v") != nil {
 		pid = 12345
 	} else {
-		pid, err = SpawnGameRoom(1234)
+		pid, err = SpawnGameRoom(port)
 		if err != nil {
 			return nil, err
 		}
@@ -99,12 +114,13 @@ func (s *Service) RegisterGameRoom(ctx context.Context, maxPlayers *int) (*Room,
 		defaultValue := 32
 		maxPlayers = &defaultValue
 	}
+	var ip = os.Getenv("IP_ADDRESS")
 
 	room := &Room{
 		RoomID:             uuid.New().String(),
 		State:              StateIniting,
-		Address:            "",
-		Port:               1234,
+		Address:            ip,
+		Port:               port,
 		Players:            []string{},
 		Winner:             "",
 		CreatedAt:          time.Now(),
