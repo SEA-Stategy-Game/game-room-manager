@@ -101,23 +101,26 @@ func (s *Service) RegisterGameRoom(ctx context.Context, maxPlayers *int) (*Room,
 
 	var pid int
 
+	if maxPlayers == nil {
+		defaultValue := 32
+		maxPlayers = &defaultValue
+	}
+
+	id := uuid.New().String()
+
 	if flag.Lookup("test.v") != nil {
 		pid = 12345
 	} else {
-		pid, err = SpawnGameRoom(port)
+		pid, err = SpawnGameRoom(port, id, *maxPlayers)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	if maxPlayers == nil {
-		defaultValue := 32
-		maxPlayers = &defaultValue
-	}
 	var ip = os.Getenv("IP_ADDRESS")
 
 	room := &Room{
-		RoomID:             uuid.New().String(),
+		RoomID:             id,
 		State:              StateIniting,
 		Address:            ip,
 		Port:               port,
