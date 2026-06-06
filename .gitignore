@@ -1,3 +1,5 @@
 .env
 *.db
 .DS_Store
+manager.db
+/gameroom.app/**

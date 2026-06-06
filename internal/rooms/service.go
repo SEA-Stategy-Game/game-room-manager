@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"flag"
+	"net"
 	"time"
 
 	"github.com/google/uuid"
@@ -96,28 +97,46 @@ func (s *Service) SetGameStatus(ctx context.Context, roomID string, status strin
 
 func (s *Service) RegisterGameRoom(ctx context.Context, maxPlayers *int) (*Room, error) {
 
-	var pid int
-	var err error
+	ln, _ := net.Listen("tcp", ":0")
+	port := ln.Addr().(*net.TCPAddr).Port
+	ln.Close()
 
-	if flag.Lookup("test.v") != nil {
-		pid = 12345
-	} else {
-		pid, err = SpawnGameRoom(1234)
-		if err != nil {
-			return nil, err
-		}
-	}
+	var err error
+	var pid int
 
 	if maxPlayers == nil {
 		defaultValue := 32
 		maxPlayers = &defaultValue
 	}
 
+	id := uuid.New().String()
+
+	if err != nil {
+		ln.Close() // release on failure
+		return nil, err
+	}
+
+	// release AFTER successful spawn
+	ln.Close()
+	if flag.Lookup("test.v") != nil {
+		pid = 12345
+	} else {
+		pid, err = SpawnGameRoom(port, id, *maxPlayers, s.gameImage)
+		go func() {
+			defer ln.Close()
+		}()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	var ip = "127.0.0.1"
+
 	room := &Room{
-		RoomID:             uuid.New().String(),
+		RoomID:             id,
 		State:              StateIniting,
-		Address:            "",
-		Port:               1234,
+		Address:            ip,
+		Port:               port,
 		Players:            []string{},
 		Winner:             "",
 		CreatedAt:          time.Now(),
