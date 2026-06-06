@@ -3,36 +3,47 @@ package rooms
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 
 	"runtime"
 
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
 )
 
-func SpawnGameRoom(port int, id string, max int, image string) (int, error) {
+func SpawnGameRoom(port int, id string, max int, img string) (int, error) {
 	if os.Getenv("RUNNING_IN_DOCKER") == "true" {
-		return runDocker(port, id, max, image)
+		return runDocker(port, id, max, img)
 	}
 	return runLocally(port, id, max)
 }
 
-func runDocker(port int, id string, max int, image string) (int, error) {
+func runDocker(port int, id string, max int, img string) (int, error) {
 	ctx := context.Background()
 	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	if err != nil {
 		return 0, fmt.Errorf("failed to create docker client: %w", err)
 	}
 
+	reader, err := cli.ImagePull(ctx, img, image.PullOptions{})
+	if err != nil {
+		return 0, fmt.Errorf("failed to pull image: %w", err)
+	}
+	defer reader.Close()
+	// By writing the pull output to os.Stdout, we can see the progress
+	// and any errors from the Docker daemon during the pull.
+	io.Copy(os.Stdout, reader)
+
 	containerPort := nat.Port("12345/udp")
 	hostPort := fmt.Sprintf("%d", port)
 
 	resp, err := cli.ContainerCreate(ctx, &container.Config{
-		Image: image,
+		Image: img,
 		Env: []string{
 			"USE_REDIS=true",
 			"REDIS_HOST=host.docker.internal",
