@@ -6,6 +6,8 @@ import (
 	"os"
 	"os/exec"
 
+	"runtime"
+
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
@@ -71,14 +73,27 @@ func runDocker(port int, id string, max int, image string) (int, error) {
 
 // runLocally only runs in macbook for now
 func runLocally(port int, id string, max int) (int, error) {
-	// format := os.Getenv("GAME_ROOM_CMD")
-	args := []string{
-
-		"--headless",
-		"--",
-		fmt.Sprintf("--port=%d", port),
+	var binary string
+	var args []string
+	switch runtime.GOOS {
+	case "darwin":
+		binary = "./gameroom.app/Contents/MacOS/Core"
+		args = []string{
+			"--headless",
+			"--",
+			"--port",
+			fmt.Sprintf("%d", port),
+		}
+	case "linux":
+		binary = "./my_server.x86_64"
+		args = []string{
+			"--headless",
+			fmt.Sprintf("--port=%d", port),
+		}
+	default:
+		return 0, fmt.Errorf("unsupported OS: %s", runtime.GOOS)
 	}
-	cmd := exec.Command("./gameroom.app/Contents/MacOS/Core", args...)
+	cmd := exec.Command(binary, args...)
 
 	cmd.Env = append(os.Environ(),
 		"USE_REDIS=true",
@@ -94,7 +109,7 @@ func runLocally(port int, id string, max int) (int, error) {
 	if cmd.Stderr != nil {
 		return 0, &exec.Error{}
 	}
-	
+
 	if cmd.Process == nil {
 		return 0, fmt.Errorf("failed to get process pid")
 	}
