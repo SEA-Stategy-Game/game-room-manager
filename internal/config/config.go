@@ -24,7 +24,7 @@ func Load() (*Config, error) {
 	v.SetDefault("port", 8080)
 	v.SetDefault("env", "local")
 	v.SetDefault("log_level", "info")
-	v.SetDefault("game_image", "sea-strategy-game:latest")
+	v.SetDefault("game_image", "flapezoti/sea-game-room:v1.0")
 
 	v.SetConfigName("config")
 	v.SetConfigType("yaml")

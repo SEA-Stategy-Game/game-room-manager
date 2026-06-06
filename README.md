@@ -120,3 +120,4 @@ For example depending on the platform the command used to launch game rooms diff
 | ENV VARIABLE  | DESCRIPTION                               | EXAMPLE                                                 |
 | ------------- | ----------------------------------------- | ------------------------------------------------------- |
 | GAME_ROOM_CMD | Sets the command used to launch game room | ./gameroom.app/Contents/MacOS/Core --headless -- --port |
+| IP_ADRESS     | Sets the ip address of created rooms      | 127.0.0.1                                               |

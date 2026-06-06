@@ -29,9 +29,7 @@ EXPOSE 8080
 
 COPY --from=builder /bin/game-room-manager /app/game-room-manager
 COPY config ./config
-# Copy the data directory and set ownership to the nonroot user
-COPY --from=builder --chown=nonroot:nonroot /data /data
-
-USER nonroot:nonroot
+# Copy the data directory and set ownership to root since we are running as root
+COPY --from=builder /data /data
 
 ENTRYPOINT ["/app/game-room-manager"]
