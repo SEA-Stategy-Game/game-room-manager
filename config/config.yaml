@@ -1,4 +1,4 @@
 port: 8080
 env: local
 log_level: info
-game_image: flapezoti/sea-game-room:v1.0
+game_image: flapezoti/sea-game-room:v1.1
