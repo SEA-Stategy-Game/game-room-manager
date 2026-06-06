@@ -108,6 +108,7 @@ func (s *Service) RegisterGameRoom(ctx context.Context, maxPlayers *int) (*Room,
 		Players:            []string{},
 		Winner:             "",
 		CreatedAt:          time.Now(),
+		LastHeartbeatAt:    time.Now(),
 		ProcessID:          pid,
 		MaxNumberOfPlayers: maxPlayers,
 	}
@@ -130,6 +131,7 @@ func (s *Service) RegisterManualGame(ctx context.Context, roomID string, address
 		Players:            []string{},
 		Winner:             "",
 		CreatedAt:          time.Now(),
+		LastHeartbeatAt:    time.Now(),
 		ProcessID:          0,
 		MaxNumberOfPlayers: maxPlayers,
 	}
