@@ -39,28 +39,16 @@ func (s *Service) JoinGameRoom(ctx context.Context, roomID string, playerID stri
 	return s.repo.ReadModifyWrite(ctx, roomID, func(room *Room) error {
 		// Ensure the player isn't already in the room
 		for _, p := range room.Players {
-			if p == playerID {
-				return nil // Idempotent: player is already in the room
+			if p == playerID { // Idempotent: player is already in the room
+				return nil
 			}
 		}
-		return s.repo.ReadModifyWrite(ctx, roomID, func(room *Room) error {
-			// Ensure the player isn't already in the room
-			for _, p := range room.Players {
-				if p == playerID {
-					return nil // Idempotent: player is already in the room
-				}
-			}
 
-			if room.MaxNumberOfPlayers != nil && len(room.Players) >= *room.MaxNumberOfPlayers {
-				return ErrRoomFull
-			}
-			if room.MaxNumberOfPlayers != nil && len(room.Players) >= *room.MaxNumberOfPlayers {
-				return ErrRoomFull
-			}
+		// Check if the room is full
+		if room.MaxNumberOfPlayers != nil && len(room.Players) >= *room.MaxNumberOfPlayers {
+			return ErrRoomFull
+		}
 
-			room.Players = append(room.Players, playerID)
-			return nil
-		})
 		room.Players = append(room.Players, playerID)
 		return nil
 	})
