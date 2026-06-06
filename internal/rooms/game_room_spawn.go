@@ -7,8 +7,14 @@ import (
 )
 
 func SpawnGameRoom(port int, id string, max int) (int, error) {
-	format := os.Getenv("GAME_ROOM_CMD")
-	cmd := exec.Command(format, fmt.Sprintf("%d", port))
+	// format := os.Getenv("GAME_ROOM_CMD")
+	args := []string{
+
+		"--headless",
+		"--",
+		fmt.Sprintf("--port=%d", port),
+	}
+	cmd := exec.Command("./gameroom.app/Contents/MacOS/Core", args...)
 
 	cmd.Env = append(os.Environ(),
 		"USE_REDIS=true",
